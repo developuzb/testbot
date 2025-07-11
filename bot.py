@@ -25,6 +25,8 @@ import json
 import aiohttp
 from aiogram import types
 
+API_URL = "https://admin-panel-3cc1cb571383.herokuapp.com/api/services/"
+
 
 METRICS_FILE = "metrics.json"
 
