@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 executor = ThreadPoolExecutor(max_workers=2)
 import json
 import aiohttp
+from aiogram import types
 
 
 METRICS_FILE = "metrics.json"
@@ -964,45 +965,46 @@ async def get_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
     
-THUMB_URL = "https://i.ibb.co/4w8mVTyH/Chat-GPT-Image-Jul-9-2025-04-30-59-AM.png"
-
-async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def fetch_services():
     try:
-        query = update.inline_query.query.strip()
-        results = []
-
-        # 1 - Yuqoridagi sariq "tugma"
-        results.append(
-            InlineQueryResultArticle(
-                id="prompt_service_name",
-                title="✍️ Xizmat nomini yozing",
-                description="Masalan: printer chiqarish, kserokopiya, dizayn, reklama...",
-                input_message_content=InputTextMessageContent("🚀 Xizmat izlash boshlandi..."),
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📢 Bizni telegramda kuzating!", url="https://t.me/texnosetUZ")]
-                ]),
-                thumb_url=THUMB_URL  # 🔼 Sariq tugma uchun ham rasm
-            )
-        )
-
-        # 2 - Xizmatlar
-        services = get_services()
-        for service in services:
-            if query.lower() in service["name"].lower():
-                results.append(
-                    InlineQueryResultArticle(
-                        id=str(uuid4()),
-                        title=service["name"],
-                        description=f"{service['price']} so‘m",
-                        input_message_content=InputTextMessageContent(f"#XIZMAT#{service['id']}"),
-                        thumb_url=THUMB_URL  # 🔼 Har bir xizmatga ham rasm
-                    )
-                )
-
-        await update.inline_query.answer(results, cache_time=0, is_personal=True)
-
+        async with aiohttp.ClientSession() as session:
+            async with session.get(API_URL) as response:
+                if response.status == 200:
+                    return await response.json()
     except Exception as e:
-        logger.error(f"Inline query javobida xatolik: {e}")
+        print(f"❌ Xizmatlarni olishda xato: {e}")
+    return []
+
+
+async def inline_query_handler(update: InlineQuery, context: ContextTypes.DEFAULT_TYPE):
+    query = update.query.lower().strip()
+    services = await fetch_services()
+    results = []
+
+    for service in services:
+        name = service.get("name", "").lower()
+        service_id = service.get("id")
+
+        if query in name or query == "":
+            duration = service.get("duration", "—")
+            cashback = service.get("cashback", 0)
+            image_url = service.get("image_url") or DEFAULT_IMAGE
+
+            message_text = f"#XIZMAT#{service_id}"
+
+            result = InlineQueryResultArticle(
+                id=str(uuid4()),
+                title=service["name"],
+                description=f"⏱ {duration} daqiqa | 💸 Cashback: {cashback}%",
+                input_message_content=InputTextMessageContent(
+                    message_text=message_text
+                ),
+                thumb_url=image_url
+            )
+
+            results.append(result)
+
+    await update.answer(results[:50], is_personal=True, cache_time=0)
         
 async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
