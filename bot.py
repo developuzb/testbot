@@ -1008,7 +1008,8 @@ async def inline_query_handler(update: InlineQuery, context: ContextTypes.DEFAUL
 
             results.append(result)
 
-    await update.answer(results[:50], is_personal=True, cache_time=0)
+    await update.inline_query.answer(results[:50], is_personal=True, cache_time=0)
+
         
 async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
