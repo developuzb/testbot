@@ -977,7 +977,7 @@ async def fetch_services():
 
 
 async def inline_query_handler(update: InlineQuery, context: ContextTypes.DEFAULT_TYPE):
-    query = update.query.lower().strip()
+    query = update.inline_query.query.lower().strip()
     services = await fetch_services()
     results = []
 
