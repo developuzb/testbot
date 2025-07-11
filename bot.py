@@ -1003,7 +1003,7 @@ async def inline_query_handler(update: InlineQuery, context: ContextTypes.DEFAUL
                 input_message_content=InputTextMessageContent(
                     message_text=message_text
                 ),
-                thumb_url=image_url
+                thumbnail_url=image_url
             )
 
             results.append(result)
