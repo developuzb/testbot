@@ -998,7 +998,7 @@ async def inline_query_handler(update: InlineQuery, context: ContextTypes.DEFAUL
 
             result = InlineQueryResultArticle(
                 id=str(uuid4()),
-                title=service["name"],
+                title=service["name"], 
                 description=f"⏱ {duration} daqiqa | 💸 Cashback: {cashback}%",
                 input_message_content=InputTextMessageContent(
                     message_text=message_text
@@ -1007,9 +1007,11 @@ async def inline_query_handler(update: InlineQuery, context: ContextTypes.DEFAUL
             )
 
             results.append(result)
-
+# okey
     await update.inline_query.answer(results[:50], is_personal=True, cache_time=0)
 
+print("✅ trigger_inline_handler test print")
+        
         
 async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
