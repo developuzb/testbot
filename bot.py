@@ -1042,7 +1042,6 @@ async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=markup
     )
     return WAIT_PHONE
-
 async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.strip()
@@ -1093,12 +1092,12 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
     caption = (
         f"📌 <b>{name}</b> — ayni hozir buyurtma bering!\n\n"
         f"📝 <b>Tafsilot:</b>\n<pre>{description}</pre>\n"
-        f"⏱ <b>Bajarilish muddati:</b> {duration} daqiqa\n"
-        f"💰 <b>Hozirgi narx:</b> <code>{price:,} so‘m</code>\n"
-        f"🎁 <b>Cashback:</b> {cashback}% — xizmatdan keyin qaytadi\n\n"
-        f"—\n<s>{original:,} so‘m</s> → <b>{price:,} so‘m</b>\n"
-        f"💸 <b>Umumiy foyda:</b> {original - price:,} + {cashback_sum:,} = <u>{jami_foyda:,} so‘m</u>\n\n"
-        f"🔥 <i>Taklif vaqtinchalik amal qiladi!</i>\n"
+        f"⏱ <b>Bajarilish muddati:</b> {duration} daqiqa\n\n"
+        f"💰 <b>Avvalgi narx:</b> <b><s>{original:,} so‘m</s></b>\n"
+        f"💥 <b>Aksiya narxi:</b> <b>{price:,} so‘m</b>\n"
+        f"🎁 <b>Cashback:</b> {cashback_sum:,} so‘m ({cashback}%)\n\n"
+        f"💸 <b>Foyda:</b> {original - price:,} + {cashback_sum:,} = <u>{jami_foyda:,} so‘m</u>\n\n"
+        f"⏳ <b>Aksiya muddati cheklangan!</b>\n"
         f"👇 <b>Buyurtma berish uchun “Roziman”ni bosing</b>\n\n"
         f"#Buyurtma: <code>#{order_id}</code>"
     )
