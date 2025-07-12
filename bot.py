@@ -1042,7 +1042,6 @@ async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=markup
     )
     return WAIT_PHONE
-
 async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.strip()
@@ -1085,35 +1084,35 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
     duration = service.get("duration", "—")
     tolov = service.get("payment_methods", "Naqd / Click / Payme")
     image = service.get("image")
+    description = service.get("description", "—")
 
     cashback_sum = int(price * cashback / 100)
     jami_foyda = (original - price) + cashback_sum
 
     caption = (
-        f"<b>🎯 TANLANGAN XIZMAT:</b>\n"
-        f"📌 <b>{name}</b>\n\n"
-        f"⏱ <b>Bajarilish muddati:</b> {duration} daqiqa ichida tayyor! ⏳\n\n"
-        f"💰 <b>Narx:</b>\n"
-        f"<s>{original:,} so‘m</s> → <b><u><code>{price:,} so‘m</code></u></b>\n"
-        f"<i>(Bugungi aksiya narxi — faqat hozir uchun!)</i>\n\n"
-        f"🎁 <b>Cashback:</b> <b>{cashback}%</b> — xizmat tugagach sizga qaytadi!\n\n"
-        f"💳 <b>To‘lov usullari:</b> {tolov}\n\n"
-        f"<b>🔐 Sizning foydangiz:</b> <u>{original - price:,} so‘m tejab</u> + "
-        f"<u>{cashback_sum:,} so‘m cashback</u> = <b>{jami_foyda:,} so‘m</b> foyda! 💸\n\n"
-        f"🚀 Bu taklifdan hoziroq foydalaning — aksiya vaqtincha!\n\n"
-        f"<b>👇 Pastdagi tugmani bosing va buyurtma bering:</b>\n\n"
-        f"🧾 Buyurtma raqami: <b>#{order_id}</b>"
+        f"📌 <b>{name}</b> — ayni hozir buyurtma bering!\n\n"
+        f"📝 <b>Tafsilot:</b>\n<pre>{description}</pre>\n"
+        f"⏱ <b>Bajarilish muddati:</b> {duration} daqiqa\n"
+        f"💰 <b>Hozirgi narx:</b> <code>{price:,} so‘m</code>\n"
+        f"🎁 <b>Cashback:</b> {cashback}% — xizmatdan keyin qaytadi\n\n"
+        f"—\n<s>{original:,} so‘m</s> → <b>{price:,} so‘m</b>\n"
+        f"💸 <b>Umumiy foyda:</b> {original - price:,} + {cashback_sum:,} = <u>{jami_foyda:,} so‘m</u>\n\n"
+        f"🔥 <i>Taklif vaqtinchalik amal qiladi!</i>\n"
+        f"👇 <b>Buyurtma berish uchun “Roziman”ni bosing</b>\n\n"
+        f"#Buyurtma: <code>#{order_id}</code>"
     )
 
     # Tugmalar
-    buttons = [[InlineKeyboardButton("✅ Roziman", callback_data="confirm_service")]]
-    if "Click" in tolov:
-        click_url = create_click_url(order_id, price)
-        buttons.insert(0, [InlineKeyboardButton("💳 Click orqali to‘lash", url=click_url)])
-
+    buttons = [
+        [
+            InlineKeyboardButton("⬅️ Bosh menyuga", callback_data="restart"),
+            InlineKeyboardButton("🆘 Operator yordami", callback_data="help_request")
+        ],
+        [InlineKeyboardButton("✅ Roziman", callback_data="confirm_service")]
+    ]
     markup = InlineKeyboardMarkup(buttons)
 
-    # Rasm va matn yuborish
+    # Xizmat rasmi bo‘lsa — rasm bilan yuboriladi
     try:
         if image:
             image_url = f"https://admin-panel-3cc1cb571383.herokuapp.com/static/images/{image}"
@@ -1131,11 +1130,10 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode=ParseMode.HTML
             )
     except Exception as e:
-        logger.error(f"Xabar yuborishda xatolik: {e}")
-        await update.message.reply_text("❌ Xizmat haqida xabar yuborilmadi.")
+        logger.error(f"Xizmat xabarini yuborishda xato: {e}")
+        await update.message.reply_text("❌ Xizmat haqida ma'lumot yuborilmadi.")
 
     return WAIT_PHONE
-
 
 async def info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("ℹ️ /info komandasi ishladi")
