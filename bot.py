@@ -1041,71 +1041,83 @@ async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return WAIT_PHONE
 
-
 async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.strip()
-        if text.strip().lower() in ("/info", "info"):
+        if text.lower() in ("/info", "info"):
             btn = InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Obuna bo‘lish", url="https://t.me/texnosetUZ")]
             ])
-            await update.message.reply_text("📢 Bizni Telegramda kuzating! yoki /start buyurug'ini ", reply_markup=btn)
+            await update.message.reply_text("📢 Bizni Telegramda kuzating!", reply_markup=btn)
             return
 
         service_id = int(update.message.text.replace("#XIZMAT#", ""))
         logger.info(f"Xizmat tanlandi, ID: {service_id}")
     except ValueError:
-        logger.error("Xizmat ID noto'g'ri formatda")
         await update.message.reply_text("❌ Xizmat topilmadi.")
         return ConversationHandler.END
 
     try:
-        with open(DATA_FILE, encoding='utf-8') as f:
-            services = json.load(f)
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"https://admin-panel-3cc1cb571383.herokuapp.com/api/services/{service_id}")
+        if resp.status_code != 200:
+            await update.message.reply_text("❌ Xizmat topilmadi.")
+            return ConversationHandler.END
+        service = resp.json()
     except Exception as e:
-        logger.error(f"Xizmatlar faylini o'qishda xato: {e}")
-        await update.message.reply_text("❌ Xizmatlar ro'yxatini olishda xato yuz berdi.")
-        return ConversationHandler.END
-
-    service = next((s for s in services if s['id'] == service_id), None)
-    if not service:
-        logger.error(f"Xizmat topilmadi, ID: {service_id}")
-        await update.message.reply_text("❌ Xizmat topilmadi.")
+        logger.error(f"APIdan xizmatni olishda xatolik: {e}")
+        await update.message.reply_text("❌ Xizmat haqida ma'lumot olishda xatolik.")
         return ConversationHandler.END
 
     order_id = get_next_order_number()
-    context.user_data['selected_service'] = service
+    context.user_data['selected_service'] = service_id
     context.user_data['order_id'] = order_id
     context.user_data['user_id'] = update.effective_user.id
-    context.user_data['step'] = 'waiting_for_phone'  # ❗️MUHIM: step belgilanmoqda
-    logger.info(f"Yangi buyurtma raqami: {order_id}")
+    context.user_data['step'] = 'waiting_for_phone'
 
-    service['used'] = service.get('used', 0) + 1
-    try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(services, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Xizmatlar faylini yozishda xato: {e}")
+    name = service.get("name", "—")
+    price = service.get("price", 0)
+    original = service.get("original_price", price)
+    cashback = service.get("cashback", 0)
+    duration = service.get("duration", "—")
+    tolov = service.get("payment_methods", "Naqd / Click / Payme")
+    image = service.get("image")
+
+    cashback_sum = int(price * cashback / 100)
+    jami_foyda = (original - price) + cashback_sum
 
     caption = (
-        f"📌 <b>{service['name']}</b>\n"
-        f"💰 {service['price']} so‘m\n"
-        f"💳 To‘lov: {', '.join(service['payment_methods'])}\n"
-        f"🧾 Buyurtma raqami: <b>#{order_id}</b>\n\n"
-        "❗ Agar rozimisiz, pastdagi tugmani bosing."
+        f"<b>🎯 TANLANGAN XIZMAT:</b>\n"
+        f"📌 <b>{name}</b>\n\n"
+        f"⏱ <b>Bajarilish muddati:</b> {duration} daqiqa ichida tayyor! ⏳\n\n"
+        f"💰 <b>Narx:</b>\n"
+        f"<s>{original:,} so‘m</s> → <b><u><code>{price:,} so‘m</code></u></b>\n"
+        f"<i>(Bugungi aksiya narxi — faqat hozir uchun!)</i>\n\n"
+        f"🎁 <b>Cashback:</b> <b>{cashback}%</b> — xizmat tugagach sizga qaytadi!\n\n"
+        f"💳 <b>To‘lov usullari:</b> {tolov}\n\n"
+        f"<b>🔐 Sizning foydangiz:</b> <u>{original - price:,} so‘m tejab</u> + "
+        f"<u>{cashback_sum:,} so‘m cashback</u> = <b>{jami_foyda:,} so‘m</b> foyda! 💸\n\n"
+        f"🚀 Bu taklifdan hoziroq foydalaning — aksiya vaqtincha!\n\n"
+        f"<b>👇 Pastdagi tugmani bosing va buyurtma bering:</b>\n\n"
+        f"🧾 Buyurtma raqami: <b>#{order_id}</b>"
     )
 
+    # Tugmalar
     buttons = [[InlineKeyboardButton("✅ Roziman", callback_data="confirm_service")]]
-    if 'Click' in service['payment_methods']:
-        click_url = create_click_url(order_id, service['price'])
+    if "Click" in tolov:
+        click_url = create_click_url(order_id, price)
         buttons.insert(0, [InlineKeyboardButton("💳 Click orqali to‘lash", url=click_url)])
+
     markup = InlineKeyboardMarkup(buttons)
 
+    # Rasm va matn yuborish
     try:
-        if service.get('image'):
+        if image:
+            image_url = f"https://admin-panel-3cc1cb571383.herokuapp.com/static/images/{image}"
             await context.bot.send_photo(
                 chat_id=update.effective_user.id,
-                photo=service['image'],
+                photo=image_url,
                 caption=caption,
                 reply_markup=markup,
                 parse_mode=ParseMode.HTML
@@ -1117,10 +1129,11 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode=ParseMode.HTML
             )
     except Exception as e:
-        logger.error(f"Rasm yoki matn yuborishda xato: {e}")
+        logger.error(f"Xabar yuborishda xatolik: {e}")
         await update.message.reply_text("❌ Xizmat haqida xabar yuborilmadi.")
 
     return WAIT_PHONE
+
 
 async def info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("ℹ️ /info komandasi ishladi")
