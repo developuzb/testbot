@@ -1042,6 +1042,7 @@ async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=markup
     )
     return WAIT_PHONE
+
 async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.strip()
@@ -1105,14 +1106,13 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
     # Tugmalar
     buttons = [
         [
-            InlineKeyboardButton("⬅️ Bosh menyuga", callback_data="restart"),
-            InlineKeyboardButton("🆘 Operator yordami", callback_data="help_request")
+            InlineKeyboardButton("📂 Boshqa xizmat tanlash", callback_data="restart"),
+            InlineKeyboardButton("🆘 Yordam kerak", callback_data="help_request")
         ],
         [InlineKeyboardButton("✅ Roziman", callback_data="confirm_service")]
     ]
     markup = InlineKeyboardMarkup(buttons)
 
-    # Xizmat rasmi bo‘lsa — rasm bilan yuboriladi
     try:
         if image:
             image_url = f"https://admin-panel-3cc1cb571383.herokuapp.com/static/images/{image}"
@@ -1187,35 +1187,14 @@ async def fallback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def restart_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Foydalanuvchi jarayonni qayta boshlashni xohlaganda user_data ni tozalaydi va /start ni chaqiradi.
-    """
     query = update.callback_query
     await query.answer()
-    user_id = query.from_user.id
-    logger.info(f"Qayta boshlash so‘raldi: user_id={user_id}")
 
-    # user_data ni tozalash
+    # user_data tozalash (ixtiyoriy)
     context.user_data.clear()
-    logger.info(f"user_data tozalandi: user_id={user_id}")
 
-    # /start xabarini yuborish
-    text = (
-        "♻️ Jarayon qayta boshlandi!\n\n"
-        "😊 Endi bemalol xizmatni tanlashingiz mumkin. Buyurtma berish juda oson!"
-    )
-    markup = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📩 Buyurtma berish", switch_inline_query_current_chat="")],
-        [InlineKeyboardButton("🆘 Yordam kerak", callback_data="help_request")]
-    ])
-
-    await query.message.edit_text(
-        text=text,
-        parse_mode=ParseMode.HTML,
-        reply_markup=markup
-    )
-    logger.info(f"Qayta boshlash xabari yuborildi: user_id={user_id}")
-    return ConversationHandler.END
+    # start handler'ni chaqiramiz
+    await start_handler(update, context)
 
 async def continue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
