@@ -1188,11 +1188,10 @@ async def fallback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def restart_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    # user_data tozalash (ixtiyoriy)
     context.user_data.clear()
 
-    # start handler'ni chaqiramiz
+    # start_handler ni callback orqali sun'iy chaqirish
+    update.message = query.message
     await start_handler(update, context)
 
 async def continue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1261,35 +1260,45 @@ async def help_request_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    name = context.bot_data.get(f"user_{user_id}", {}).get("name", "Hurmatli mijoz")
-    logger.info(f"Yordam so‘rovi: user_id={user_id}")
 
-    # Agar allaqachon ochiq suhbat bo‘lsa
-    user_data = context.bot_data.get(f"user_{user_id}")
-    if user_data and user_data.get("thread_id") and user_data.get("is_operator_started"):
+    # Foydalanuvchi ismini aniqlash
+    name = context.bot_data.get(f"user_{user_id}", {}).get("name") or "Hurmatli mijoz"
+    name = str(name)[:50]
+    logger.info(f"🆘 Yordam so‘rovi boshlandi: user_id={user_id}, name={name}")
+
+    # GROUP_ID mavjudligini tekshirish
+    if not GROUP_ID:
+        logger.error("❌ GROUP_ID belgilanmagan. Forum topic ochib bo‘lmadi.")
+        return ConversationHandler.END
+
+    # Mavjud chat topic borligini tekshiramiz
+    user_data = context.bot_data.get(f"user_{user_id}", {})
+    if user_data.get("thread_id") and user_data.get("is_operator_started"):
         thread_id = user_data["thread_id"]
         text = (
             "🆘 Operator bilan suhbat allaqachon ochiq!\n"
             "Savolingizni yozing, operator tez orada javob beradi."
         )
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔁 Qayta boshlash", callback_data="restart")]
+            [InlineKeyboardButton("🔁 Bosh sahifaga qaytish", callback_data="restart")]
         ])
-        await query.message.edit_text(
-            text=text,
-            parse_mode=ParseMode.HTML,
-            reply_markup=markup
-        )
-        logger.info(f"Yordam so‘rovi: user_id={user_id}, mavjud thread_id={thread_id}")
+        if query.message:
+            await query.message.edit_text(text=text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        else:
+            await context.bot.send_message(chat_id=user_id, text=text, parse_mode=ParseMode.HTML, reply_markup=markup)
+
         context.user_data["step"] = "waiting_for_help_question"
+        logger.info(f"↪️ Mavjud yordam mavzusi mavjud: thread_id={thread_id}")
         return ConversationHandler.END
 
-    # Yangi yordam so‘rovi uchun forum topic ochish
+    # Yangi topic ochamiz
     try:
         topic = await context.bot.create_forum_topic(
             chat_id=GROUP_ID,
-            name=f"🦸 Yordam — {name[:50]}"
+            name=f"🦸 Yordam — {name}"
         )
+
+        # Guruhga xabar yuboramiz
         await context.bot.send_message(
             chat_id=GROUP_ID,
             message_thread_id=topic.message_thread_id,
@@ -1304,7 +1313,7 @@ async def help_request_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             ])
         )
 
-        # context.bot_data ni yangilash
+        # Bot ma'lumotlarini yangilaymiz
         context.bot_data[f"user_{user_id}"] = {
             "thread_id": topic.message_thread_id,
             "help_question": True,
@@ -1315,32 +1324,37 @@ async def help_request_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             "order_id": None
         }
         save_bot_data(context)
-        logger.info(f"Yordam so‘rovi guruhga yuborildi: user_id={user_id}, thread_id={topic.message_thread_id}")
+        logger.info(f"✅ Yordam so‘rovi guruhga yuborildi: thread_id={topic.message_thread_id}")
 
         # Foydalanuvchiga javob
         text = (
             "✅ Yordam so‘rovingiz qabul qilindi!\n"
-            "❓ Iltimos, savolingizni yozing, operatorimiz tez orada javob beradi."
+            "❓ Iltimos, savolingizni yozing. Operatorimiz tez orada javob beradi."
         )
         markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("🔁 Qayta boshlash", callback_data="restart")]
         ])
-        await query.message.edit_text(
-            text=text,
-            parse_mode=ParseMode.HTML,
-            reply_markup=markup
-        )
+        if query.message:
+            await query.message.edit_text(text=text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        else:
+            await context.bot.send_message(chat_id=user_id, text=text, parse_mode=ParseMode.HTML, reply_markup=markup)
+
         context.user_data["step"] = "waiting_for_help_question"
+
     except Exception as e:
-        await query.message.edit_text(
-            text="❌ Yordam so‘rovini yuborishda xato yuz berdi. Iltimos, keyinroq urinib ko‘ring.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔁 Qayta boshlash", callback_data="restart")]
-            ])
+        logger.error(f"❌ Yordam mavzusi yaratishda xato: user_id={user_id}, xato={e}")
+        fallback_text = (
+            "❌ Yordam so‘rovini yuborishda texnik xatolik yuz berdi.\n"
+            "Iltimos, keyinroq urinib ko‘ring."
         )
-        logger.error(f"Yordam so‘rovi yuborishda xato: user_id={user_id}, xato={e}")
-    
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔁 Qayta boshlash", callback_data="restart")]
+        ])
+        if query.message:
+            await query.message.edit_text(text=fallback_text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        else:
+            await context.bot.send_message(chat_id=user_id, text=fallback_text, parse_mode=ParseMode.HTML, reply_markup=markup)
+
     return ConversationHandler.END
     
 async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
