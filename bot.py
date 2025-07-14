@@ -24,7 +24,8 @@ executor = ThreadPoolExecutor(max_workers=2)
 import json
 import aiohttp
 from aiogram import types
-from api_client import update_user, create_order
+from .api_client import update_user, create_order
+assert os.path.exists("api_client.py"), "❌ api_client.py topilmadi"
 
 
 API_URL = "https://admin-panel-3cc1cb571383.herokuapp.com/api/services/"
