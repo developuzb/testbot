@@ -34,7 +34,15 @@ async def track_user(user_id: int, name: str, phone: str):
 async def fetch_user_profile(user_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{BASE_URL}/services/users/{user_id}") as resp:
-            return await resp.json()
+            data = await resp.json()
+            return {
+                "name": data.get("ism"),
+                "phone": data.get("telefon"),
+                "balance": data.get("balans"),
+                "actions_count": data.get("amallar_soni"),
+                "badge": data.get("badge")
+            }
+
 
 # 💰 CASHBACK
 
