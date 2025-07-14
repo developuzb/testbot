@@ -97,3 +97,19 @@ async def update_order_status(order_id, status):
         ) as resp:
             return await resp.json() if resp.status == 200 else None
 
+# 🚀 next order_id olish
+async def get_next_order_number(service_id: int) -> int:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{BASE_URL}/services/{service_id}") as resp:
+            if resp.status != 200:
+                raise Exception(f"❌ Xizmat topilmadi: status={resp.status}")
+            data = await resp.json()
+            last = data.get("last_order") or 173000
+            return last + 1
+
+# 🧾 last_order ni yangilash
+async def update_last_order(service_id: int, new_order_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.patch(f"{BASE_URL}/services/{service_id}", json={"last_order": new_order_id}) as resp:
+            if resp.status not in (200, 204):
+                raise Exception(f"❌ last_order yangilanmadi: status={resp.status}")
