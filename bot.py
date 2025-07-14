@@ -14,6 +14,7 @@ import logging
 from PIL import Image, ImageDraw, ImageFont
 import io
 import qrcode
+from api_client import update_user
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import math
 import uuid
