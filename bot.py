@@ -1369,7 +1369,7 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await create_order({
         "order_id": order_id,
         "user_id": user_id,
-        "service_id": service["id"],
+        "service_id": service,
         "service_name": service["name"],
         "contact_method": contact_method,
         "contact_time": contact_time,
