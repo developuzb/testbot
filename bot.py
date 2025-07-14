@@ -630,7 +630,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=markup
     )
 
+    name = update.effective_user.full_name or f"@{update.effective_user.username}" or "Foydalanuvchi"
+
+
     return ConversationHandler.END
+
+
 
 async def bonus_services_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
