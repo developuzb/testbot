@@ -27,18 +27,8 @@ from aiogram import types
 
 API_URL = "https://admin-panel-3cc1cb571383.herokuapp.com/api/services/"
 DEFAULT_IMAGE = "https://i.ibb.co/4w8mVTyH/Chat-GPT-Image-Jul-9-2025-04-30-59-AM.png"
-
-
-
-METRICS_FILE = "metrics.json"
-
-if not os.path.exists("bot_data.json"):
-    print("ℹ bot_data.json fayli topilmadi, yangi yaratilmoqda")
-    with open("bot_data.json", "w", encoding="utf-8") as f:
-        json.dump({}, f)
-        
+ 
 logger = logging.getLogger(__name__)
-USERS_FILE = "users.json"
 
 def load_services_to_cache(context):
     services = get_services(admin=True)
@@ -149,25 +139,18 @@ def get_admin_settings_buttons():
     ]
     
 
-def load_users():
-    try:
-        with open(USERS_FILE, 'r', encoding='utf-8') as f:
-            users = json.load(f)
-            for user_id, data in users.items():
-                if isinstance(data, str):
-                    users[user_id] = {
-                        'name': data,
-                        'phone': None,
-                        'orders': [],
-                        'rated_identifiers': []
-                    }
-                for order in data.get('orders', []):
-                    if 'payment_status' not in order:
-                        order['payment_status'] = 'pending'
-            return users
-    except Exception as e:
-        logger.error(f"users.json faylini o'qishda xato: {e}")
-        return {}
+async def fetch_user(telegram_id: int):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{BASE_URL}/users/{telegram_id}") as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                # Defaultlar bilan to‘ldirish (agar kerak bo‘lsa)
+                data.setdefault('phone', None)
+                data.setdefault('orders', [])
+                data.setdefault('rated_identifiers', [])
+                return data
+            else:
+                return None
 import qrcode
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
@@ -403,38 +386,7 @@ def create_receipt_image(order, amount, confirmation_time):
     img.save(buffer, format="PNG")
     buffer.seek(0)
     return buffer    
-
-def save_bot_data(context):
-    try:
-        with open('bot_data.json', 'w', encoding='utf-8') as f:
-            json.dump(context.bot_data, f, ensure_ascii=False, indent=2)
-        logger.info("✅ context.bot_data bot_data.json ga saqlandi")
-    except Exception as e:
-        logger.error(f"❌ bot_data.json ga saqlashda xato: {e}")
-
-def load_bot_data(context):
-    try:
-        with open('bot_data.json', 'r', encoding='utf-8') as f:
-            context.bot_data.update(json.load(f))
-        # Admin ID ni yangilash
-        if 'settings' in context.bot_data and 'admin_id' in context.bot_data['settings']:
-            global ADMIN_ID
-            ADMIN_ID = context.bot_data['settings']['admin_id']
-        logger.info("✅ bot_data.json dan ma'lumotlar yuklandi")
-    except FileNotFoundError:
-        logger.info("ℹ bot_data.json fayli topilmadi, yangi yaratiladi")
-    except Exception as e:
-        logger.error(f"❌ bot_data.json dan o‘qishda xato: {e}")
-        
-def save_users(users):
-    try:
-        with open(USERS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(users, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.error(f"users.json faylini saqlashda xato: {e}")
-        return {}
-
-USERS = load_users()
+      
 
 
 import logging
@@ -484,9 +436,8 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-# Load environment variables
 TOKEN = os.getenv("BOT_TOKEN")
+
 try:
     ADMIN_ID = int(os.getenv("ADMIN_ID"))
     GROUP_ID = int(os.getenv("GROUP_ID"))
@@ -494,11 +445,11 @@ except (TypeError, ValueError) as e:
     logger.critical(f".env faylida xato: ADMIN_ID yoki GROUP_ID noto'g'ri. {e}")
     raise SystemExit("Bot ishga tushmadi: .env faylini tekshiring.")
 
-DATA_FILE = './database/services.json'
-ORDER_COUNTER_FILE = './database/order_counter.json'
+# Buyurtma uchun xabar andozasi (API asosida ishlatiladi)
 ORDER_MESSAGE_TEMPLATE = (
     "📦 <b>Yangi buyurtma!</b>\n\n"
-    "🧾 Buyurtma raqami: <b>#{order_id}</b>\n" "🆔 Xizmat ID: <code>{service_id}</code>\n"
+    "🧾 Buyurtma raqami: <b>#{order_id}</b>\n"
+    "🆔 Xizmat ID: <code>{service_id}</code>\n"
     "📌 Nomi: <b>{service_name}</b>\n"
     "📞 Raqam: <code>{phone}</code>\n"
     "📱 Aloqa usuli: <i>{contact_method}</i>\n"
@@ -521,21 +472,6 @@ if not os.path.exists(ORDER_COUNTER_FILE):
     with open(ORDER_COUNTER_FILE, 'w', encoding='utf-8') as f:
         json.dump({"order_id": 172999}, f)
 
-def get_next_order_number():
-    try:
-        with open(ORDER_COUNTER_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        if 'order_id' not in data:
-            data['order_id'] = 172999
-        data['order_id'] += 1
-        with open(ORDER_COUNTER_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
-        return data['order_id']
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        logger.error(f"Order counter fayl xatosi: {e}")
-        with open(ORDER_COUNTER_FILE, 'w', encoding='utf-8') as f:
-            json.dump({"order_id": 172999}, f, indent=2)
-        return 172999
 
 def get_services(admin=False):
     try:
@@ -600,32 +536,20 @@ def is_match(query, name):
         return True
     return bool(difflib.get_close_matches(query_l, [name_l], cutoff=0.7))
 
-def update_metrics(event: str, group: str = None):
-    now = datetime.now(pytz.timezone('Asia/Tashkent')).strftime('%Y-%m-%d')
-    try:
-        with open("metrics.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except:
-        data = {}
+async def update_metrics(event: str, group: str = None):
+    now = datetime.now(pytz.timezone("Asia/Tashkent")).strftime("%Y-%m-%d")
+    payload = {
+        "event": event,
+        "date": now
+    }
+    if group:
+        payload["group"] = group
 
-    if event == "first_visit":
-        data.setdefault("first_visits", {}).setdefault(now, 0)
-        data["first_visits"][now] += 1
-
-    elif event == "repeat_user":
-        data.setdefault("repeat_users", {}).setdefault(now, 0)
-        data["repeat_users"][now] += 1
-
-    elif event == "loyal":
-        data.setdefault("loyal_customers", {}).setdefault(now, 0)
-        data["loyal_customers"][now] += 1
-
-    elif event == "test_group" and group:
-        data.setdefault("test_group_counts", {}).setdefault(group, 0)
-        data["test_group_counts"][group] += 1
-
-    with open("metrics.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{BASE_URL}/metrics/", json=payload) as resp:
+            if resp.status != 200:
+                raise Exception(f"Metrics update failed: {resp.status}")
+            return await resp.json()
 
 # Start funksiyasi
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -662,7 +586,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'test_group': test_group,
             'rated_identifiers': []
         }
-        save_users(USERS)
         update_metrics("first_visit")
         update_metrics("test_group", group=test_group)
 
@@ -692,8 +615,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Sodiq mijozni aniqlash va yozish
     if len(user_data.get("orders", [])) >= 3:
         if not user_data.get("is_loyal"):
-            USERS[user_id_str]["is_loyal"] = True
-            save_users(USERS)
+            await update_user(user_id, {"is_loyal": True})
             update_metrics("loyal")
 
     is_loyal = USERS[user_id_str].get("is_loyal", False)
@@ -759,11 +681,8 @@ async def asking_name_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id_str = str(user_id)
     name = update.message.text.strip()
 
-    # Ismni saqlaymiz
-    USERS[user_id_str]["name"] = name
-    save_users(USERS)
+    await update_user(user_id, {"name": name})
     context.user_data["name"] = name
-
     # Tanishuv xabari
     await update.message.reply_text(
         f"🌟 Tanishganimdan xursandman, {name}!",
@@ -1042,6 +961,7 @@ async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=markup
     )
     return WAIT_PHONE
+
 async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.strip()
@@ -1382,11 +1302,8 @@ async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['phone'] = phone
     context.user_data['step'] = 'waiting_for_contact_method'
 
-    user_id_str = str(update.effective_user.id)
-    if user_id_str in USERS:
-        USERS[user_id_str]['phone'] = phone
-        save_users(USERS)
-
+user_id = update.effective_user.id
+await update_user(user_id, {"phone": phone})
     markup = InlineKeyboardMarkup([
         [InlineKeyboardButton("📱 Shu bot orqali", callback_data="contact_bot")],
         [InlineKeyboardButton("☎️ Qo‘ng‘iroq orqali", callback_data="contact_call")],
@@ -1436,6 +1353,10 @@ async def contact_method_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     return WAIT_CONTACT_TIME
 
+from api_client import update_user, create_order
+from datetime import datetime
+import pytz
+
 async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     step = context.user_data.get('step')
     if step != 'waiting_for_time':
@@ -1459,30 +1380,23 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         return
 
-    user_id_str = str(user_id)
-    if user_id_str not in USERS:
-        USERS[user_id_str] = {
-            'name': context.user_data.get('name', 'Hurmatli mijoz'),
-            'phone': phone,
-            'orders': [],
-            'rated_identifiers': []
-        }
+    # 1. Telefon raqamini API orqali yangilash
+    await update_user(user_id, {"phone": phone})
 
-    if 'orders' not in USERS[user_id_str]:
-        USERS[user_id_str]['orders'] = []
-
-    USERS[user_id_str]['orders'].append({
-        'order_id': order_id,
-        'service_id': service['id'],
-        'service_name': service['name'],
-        'contact_method': contact_method,
-        'contact_time': contact_time,
-        'status': 'pending',
-        'timestamp': datetime.now(pytz.timezone('Asia/Tashkent')).strftime('%Y-%m-%d %H:%M:%S')
+    # 2. Buyurtmani API orqali yaratish
+    now = datetime.now(pytz.timezone("Asia/Tashkent")).strftime("%Y-%m-%d %H:%M:%S")
+    await create_order({
+        "order_id": order_id,
+        "user_id": user_id,
+        "service_id": service["id"],
+        "service_name": service["name"],
+        "contact_method": contact_method,
+        "contact_time": contact_time,
+        "status": "pending",
+        "timestamp": now
     })
 
-    save_users(USERS)
-
+    # 3. Guruhga yuboriladigan matn
     text = ORDER_MESSAGE_TEMPLATE.format(
         order_id=order_id,
         service_id=service['id'],
@@ -1492,11 +1406,13 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         contact_time=contact_time
     )
 
+    # 4. Forum topik va xabar yuborish
     try:
         topic = await context.bot.create_forum_topic(
             chat_id=GROUP_ID,
             name=f"#{order_id} - {service['name'][:50]}"
         )
+
         await send_order_to_group(
             context=context,
             order_id=order_id,
@@ -1508,7 +1424,7 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             thread_id=topic.message_thread_id,
             user_id=user_id
         )
-        logger.info(f"✅ Buyurtma yuborildi: order_id={order_id}, thread_id={topic.message_thread_id}")
+
         context.bot_data[f"user_{user_id}"] = {
             'order_id': order_id,
             'thread_id': topic.message_thread_id,
@@ -1518,13 +1434,16 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             'user_id': user_id,
             'order_id': order_id
         }
-        logger.info(f"✅ contact_time_handler: context.bot_data yangilandi: user_id={user_id}, data={context.bot_data[f'user_{user_id}']}")
+
+        logger.info(f"✅ Buyurtma yuborildi: order_id={order_id}, thread_id={topic.message_thread_id}")
+
     except Exception as e:
         logger.error(f"⚠️ Buyurtma yuborishda xato: user_id={user_id}, xato={e}")
-        await update.message.reply_text("⚠️ Afsuski, buyurtmani qayd etishda muammo yuz berdi. Iltimos, keyinroq urinib ko‘ring.")
+        await update.message.reply_text("⚠️ Buyurtmani yuborishda muammo yuz berdi. Iltimos, keyinroq urinib ko‘ring.")
         context.user_data.clear()
         return ConversationHandler.END
 
+    # 5. Mijozga xabarlar
     await update.message.reply_text(
         "✅ Buyurtmangiz qabul qilindi!\n\n"
         "Siz bilan belgilangan vaqtda bog‘lanamiz.\n"
@@ -2045,62 +1964,54 @@ async def rating_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         logger.warning(f"❌ Noto‘g‘ri callback data: {data}")
         return
 
-    identifier = parts[1][:50]  # Identifier uzunligini 50 belgiga cheklash
+    identifier = parts[1][:50]
     rating = int(parts[2])
     user_id = query.from_user.id
-    user_id_str = str(user_id)
-    name = (USERS.get(user_id_str, {}).get('name', query.from_user.full_name or "Foydalanuvchi"))[:100]
+    name = (query.from_user.full_name or "Foydalanuvchi")[:100]
 
-    # USERS ni yangilash
-    if user_id_str not in USERS:
-        USERS[user_id_str] = {'name': name, 'rated_identifiers': [], 'phone': None, 'orders': [], 'feedback_ratings': {}}
-        save_users(USERS)
-    elif 'feedback_ratings' not in USERS[user_id_str]:
-        USERS[user_id_str]['feedback_ratings'] = {}
-        save_users(USERS)
-
-    # Baholashni tekshirish
-    if identifier in USERS[user_id_str]['rated_identifiers']:
-        await query.message.reply_text(f"ℹ Aziz {name}, siz allaqachon baho bergansiz. Rahmat!")
-        logger.info(f"❗ Qayta baholash urunishi: user_id={user_id}, identifier={identifier}")
+    # API orqali bahoni yuboramiz
+    try:
+        await update_user_feedback(user_id, identifier, rating)
+        logger.info(f"✅ Baho saqlandi (API orqali): user_id={user_id}, id={identifier}, rating={rating}")
+    except Exception as e:
+        logger.error(f"❌ Baho saqlanmadi: user_id={user_id}, xato={e}")
+        await query.message.reply_text("❌ Baho saqlanmadi. Keyinroq urinib ko‘ring.")
         return
-
-    USERS[user_id_str]['rated_identifiers'].append(identifier)
-    USERS[user_id_str]['feedback_ratings'][identifier] = rating
-    save_users(USERS)
-    logger.info(f"✅ Baho qayd etildi: user_id={user_id}, identifier={identifier}, rating={rating}")
 
     is_help_request = not identifier.isdigit()
     text = f"⭐️ {'Yordam so‘rovi' if is_help_request else 'Buyurtma'} #{identifier} — {name} tomonidan {rating} baho."
-    text = text[:4096]
 
     try:
-        await context.bot.send_message(chat_id=GROUP_ID, text=text)
-        logger.info(f"✅ Guruhga baho xabari yuborildi: user_id={user_id}")
+        await context.bot.send_message(chat_id=GROUP_ID, text=text[:4096])
     except telegram.error.BadRequest as e:
-        logger.error(f"❌ Guruhga xabar yuborishda xato: user_id={user_id}, xato={e}")
+        logger.error(f"❌ Guruhga xabar yuborishda xato: {e}")
         if "Message is too long" in str(e).lower():
             short_text = f"⭐️ {'Yordam' if is_help_request else 'Buyurtma'} #{identifier[:50]} — Baho: {rating}"
             await context.bot.send_message(chat_id=GROUP_ID, text=short_text)
-            logger.info(f"✅ Qisqartirilgan xabar yuborildi: user_id={user_id}")
 
     try:
         await query.edit_message_reply_markup(reply_markup=None)
-        logger.info(f"✅ Tugmalar o‘chirildi: user_id={user_id}")
     except Exception as e:
-        logger.error(f"❌ Tugmalarni o‘chirishda xato: user_id={user_id}, xato={e}")
+        logger.error(f"❌ Tugmalarni o‘chirishda xato: {e}")
 
     if rating <= 3:
         await context.bot.send_message(
             chat_id=user_id,
             text=f"😔 Hey {name}, {rating} baho uchun rahmat. Xizmatimizda nima kamchilik bor? 3 ta xabar bilan yozing, generalga yuboramiz."
         )
-        context.user_data['waiting_for_feedback'] = {'identifier': identifier, 'name': name, 'is_help_request': is_help_request, 'feedback_count': 0, 'feedback_messages': []}
-        logger.debug(f"✅ Feedback so‘raldi: user_id={user_id}")
+        context.user_data['waiting_for_feedback'] = {
+            'identifier': identifier,
+            'name': name,
+            'is_help_request': is_help_request,
+            'feedback_count': 0,
+            'feedback_messages': []
+        }
     else:
-        await context.bot.send_message(chat_id=user_id, text=f"🌟 {name}, {rating} baho uchun tashakkur! Qaytib keling!")
-        
-        
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"🌟 {name}, {rating} baho uchun tashakkur! Qaytib keling!"
+        )
+                
 async def rating_feedback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message.text
     user_id = update.effective_user.id
@@ -2132,6 +2043,8 @@ async def rating_feedback_handler(update: Update, context: ContextTypes.DEFAULT_
         context.user_data.pop('waiting_for_feedback')
         return ConversationHandler.END
         
+from api_client import update_order_status
+
 async def command_in_topic_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message or not message.message_thread_id:
@@ -2140,80 +2053,69 @@ async def command_in_topic_handler(update: Update, context: ContextTypes.DEFAULT
 
     thread_id = message.message_thread_id
     info = context.bot_data.get(f"thread_{thread_id}")
-
     if not info:
-        logger.error(f"❌ user_id topilmadi, thread_id={thread_id}, bot_data={context.bot_data}")
+        logger.error(f"❌ user_id topilmadi, thread_id={thread_id}")
         await message.reply_text("❌ Foydalanuvchi topilmadi.")
         return
 
     user_id = info.get("user_id")
     order_id = info.get("order_id")
-    user_id_str = str(user_id)
 
+    # 🔁 Buyurtma holatini API orqali yangilaymiz
     if message.text.startswith("/bekor"):
         reason = message.text.replace("/bekor", "").strip() or "Sababsiz bekor qilindi"
         try:
-            if order_id and user_id_str in USERS:
-                for order in USERS[user_id_str]['orders']:
-                    if order['order_id'] == order_id:
-                        order['status'] = 'cancelled'
-                        save_users(USERS)
-                        break
+            if order_id:
+                await update_order_status(order_id, "cancelled")
             await context.bot.send_message(
                 chat_id=user_id,
                 text=f"❌ {'Buyurtmangiz #' + str(order_id) if order_id else 'Yordam so‘rovingiz'} bekor qilindi.\n📄 Sabab: {reason}"
             )
             logger.info(f"✅ Buyurtma bekor qilindi: user_id={user_id}, order_id={order_id}")
         except Exception as e:
-            logger.error(f"❌ Foydalanuvchiga bekor qilish xabari yuborilmadi: user_id={user_id}, xato={e}")
+            logger.error(f"❌ Bekor qilish xabari yuborilmadi: {e}")
             await message.reply_text("❌ Foydalanuvchiga xabar yuborishda xato yuz berdi.")
 
     elif message.text.startswith("/bajarildi"):
         try:
-            if order_id and user_id_str in USERS:
-                for order in USERS[user_id_str]['orders']:
-                    if order['order_id'] == order_id:
-                        order['status'] = 'completed'
-                        save_users(USERS)
-                        break
+            if order_id:
+                await update_order_status(order_id, "completed")
             await context.bot.send_message(
                 chat_id=user_id,
                 text=f"✅ {'Buyurtmangiz #' + str(order_id) if order_id else 'Yordam so‘rovingiz'} muvaffaqiyatli bajarildi!\nSizga xizmat ko‘rsatganimizdan mamnunmiz 😊"
             )
             logger.info(f"✅ Buyurtma bajarildi: user_id={user_id}, order_id={order_id}")
         except Exception as e:
-            logger.error(f"❌ Foydalanuvchiga bajarildi xabari yuborilmadi: user_id={user_id}, xato={e}")
+            logger.error(f"❌ Bajarildi xabari yuborilmadi: {e}")
             await message.reply_text("❌ Foydalanuvchiga xabar yuborishda xato yuz berdi.")
 
-    # Baholash so‘rovi
+    # ⭐ Baholash chaqiruv
     try:
-        if order_id:
-            await send_rating_request(user_id, str(order_id), context, is_help_request=False)
-        else:
-            await send_rating_request(user_id, str(thread_id), context, is_help_request=True)
-        logger.info(f"✅ Baholash so‘rovi yuborildi: user_id={user_id}, order_id={order_id}")
+        identifier = str(order_id if order_id else thread_id)
+        await send_rating_request(user_id, identifier, context, is_help_request=not order_id)
+        logger.info(f"✅ Baholash yuborildi: user_id={user_id}, id={identifier}")
     except Exception as e:
-        logger.error(f"❌ Baholash so‘rovi yuborishda xato: user_id={user_id}, xato={e}")
-        await message.reply_text("✅ Topic yopildi, lekin baholash so‘rovi yuborilmadi.")
+        logger.error(f"❌ Baholash yuborishda xato: {e}")
+        await message.reply_text("✅ Topic yopildi, lekin baholash yuborilmadi.")
 
-    # Topicni yopish
+    # 🧹 Topicni yopamiz
     try:
         await context.bot.delete_forum_topic(chat_id=GROUP_ID, message_thread_id=thread_id)
         logger.info(f"✅ Topic yopildi: thread_id={thread_id}")
     except Exception as e:
-        logger.error(f"❌ Topicni o‘chirishda xatolik: {e}")
+        logger.error(f"❌ Topicni o‘chirishda xato: {e}")
         await message.reply_text("❌ Topicni yopishda xato yuz berdi.")
 
-    # bot_data tozalash
+    # 🧽 context.bot_data tozalash
     try:
         context.bot_data.pop(f"user_{user_id}", None)
         context.bot_data.pop(f"thread_{thread_id}", None)
         for key in list(context.bot_data.keys()):
             if key.startswith("msg_") and context.bot_data[key].get("thread_id") == thread_id:
                 context.bot_data.pop(key, None)
-        logger.info(f"✅ context.bot_data tozalandi: user_id={user_id}, thread_id={thread_id}")
+        logger.info(f"✅ Bot data tozalandi: user_id={user_id}, thread_id={thread_id}")
     except Exception as e:
-        logger.error(f"❌ context.bot_data dan o‘chirishda xato: {e}")
+        logger.error(f"❌ Bot data tozalashda xato: {e}")
 
 async def user_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -2249,11 +2151,13 @@ async def user_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data.pop('mode', None)
             return
 
-        user_id_str = str(user_id)
-        order = next((o for o in USERS[user_id_str]['orders'] if o['order_id'] == order_id), None)
-        if not order:
-            await update.message.reply_text("❌ Buyurtma topilmadi.")
-            logger.error(f"❌ Buyurtma topilmadi: user_id={user_id}, order_id={order_id}")
+        # ✅ API orqali buyurtma va foydalanuvchi ma'lumotlarini olish
+        order = await get_order(user_id, order_id)
+        user = await get_user(user_id)
+
+        if not order or not user:
+            await update.message.reply_text("❌ Buyurtma yoki foydalanuvchi topilmadi.")
+            logger.error(f"❌ get_order yoki get_user natijasiz: user_id={user_id}, order_id={order_id}")
             context.user_data.pop('mode', None)
             return
 
@@ -2262,7 +2166,7 @@ async def user_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🧾 Buyurtma raqami: #{order_id}\n"
             f"📌 Xizmat: {order['service_name']}\n"
             f"💰 Summa: {payment_info['amount']} so‘m\n"
-            f"👤 Mijoz: {USERS[user_id_str]['name']}\n"
+            f"👤 Mijoz: {user['name']}\n"
             f"🕒 Sana: {order['timestamp']}\n\n"
             f"📎 Quyida chek ilova qilingan."
         )
@@ -2289,33 +2193,38 @@ async def user_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=markup
                 )
 
-            payment_info['status'] = 'awaiting_confirmation'
-            order['payment_status'] = 'awaiting_confirmation'
-            save_users(USERS)
-            save_bot_data(context)
+            await update_order_status(order_id, "awaiting_confirmation")
             await update.message.reply_text("✅ To‘lov chekingiz qabul qilindi va tekshiruvga yuborildi.")
-            logger.info(f"✅ To‘lov cheki guruhga yuborildi: user_id={user_id}, order_id={order_id}")
+            logger.info(f"✅ Chek guruhga yuborildi: user_id={user_id}, order_id={order_id}")
+
         except Exception as e:
             await update.message.reply_text("❌ Chek yuborishda xato yuz berdi. Qayta urinib ko‘ring.")
-            logger.error(f"❌ Chek guruhga yuborishda xato: user_id={user_id}, xato={e}")
+            logger.error(f"❌ Chek yuborishda xato: {e}")
 
         context.user_data.pop('mode', None)
         context.user_data.pop('order_id', None)
         return
 
-    logger.info(f"✅ Fayl chat sifatida qayta ishlash: user_id={user_id}, file_type={file_type}")
+    # 💬 Operator chat rejimi (fayl yuborish)
+    logger.info(f"✅ Fayl chat sifatida yuboriladi: user_id={user_id}, file_type={file_type}")
     user_data = context.bot_data.get(f"user_{user_id}")
     if not user_data or not user_data.get('thread_id'):
         await update.message.reply_text("❌ Faol suhbat topilmadi. Operator bilan bog‘lanish uchun buyurtma bering.")
-        logger.warning(f"❌ thread_id topilmadi: user_id={user_id}")
         return
 
     thread_id = user_data['thread_id']
     is_operator_started = user_data.get('is_operator_started', False)
     if not is_operator_started:
         await update.message.reply_text("⏳ Operator hali suhbatni boshlamadi. Iltimos, kuting.")
-        logger.info(f"⏳ Operator hali yozmagan: user_id={user_id}, thread_id={thread_id}")
         return
+
+    # 👤 Foydalanuvchi ismini API orqali olish
+    user = await get_user(user_id)
+    if not user:
+        await update.message.reply_text("❌ Foydalanuvchi topilmadi.")
+        return
+
+    caption = f"📎 Foydalanuvchi ({user['name']}) dan rasm" if file_type == 'photo' else f"📎 Foydalanuvchi ({user['name']}) dan hujjat"
 
     try:
         if file_type == 'photo':
@@ -2323,22 +2232,21 @@ async def user_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=GROUP_ID,
                 message_thread_id=thread_id,
                 photo=file_id,
-                caption=f"📎 Foydalanuvchi ({USERS[str(user_id)]['name']}) dan rasm"
+                caption=caption
             )
         elif file_type == 'document':
             await context.bot.send_document(
                 chat_id=GROUP_ID,
                 message_thread_id=thread_id,
                 document=file_id,
-                caption=f"📎 Foydalanuvchi ({USERS[str(user_id)]['name']}) dan hujjat"
+                caption=caption
             )
         await update.message.reply_text("✅ Faylingiz operatorga yuborildi.")
         logger.info(f"✅ Fayl chatga yuborildi: user_id={user_id}, thread_id={thread_id}")
     except Exception as e:
         await update.message.reply_text("❌ Fayl yuborishda xato yuz berdi. Qayta urinib ko‘ring.")
-        logger.error(f"❌ Fayl chatga yuborishda xato: user_id={user_id}, thread_id={thread_id}, xato={e}")
-        
-        
+        logger.error(f"❌ Fayl yuborishda xato: user_id={user_id}, xato={e}")
+                
 async def start_order_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -2450,37 +2358,33 @@ async def pay_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     thread_id = message.message_thread_id
     info = context.bot_data.get(f"thread_{thread_id}")
     if not info:
-        logger.error(f"❌ user_id topilmadi, thread_id={thread_id}, bot_data={context.bot_data}")
+        logger.error(f"❌ user_id topilmadi, thread_id={thread_id}")
         await message.reply_text("❌ Foydalanuvchi topilmadi.")
         return
 
     user_id = info.get("user_id")
     order_id = info.get("order_id")
-    user_id_str = str(user_id)
     if not order_id or not user_id:
-        logger.error(f"❌ order_id yoki user_id topilmadi: thread_id={thread_id}")
+        logger.error(f"❌ order_id yoki user_id yo‘q: thread_id={thread_id}")
         await message.reply_text("❌ Buyurtma yoki foydalanuvchi ma'lumotlari topilmadi.")
         return
 
-    # Buyurtma ma'lumotlarini olish
-    order = next((o for o in USERS[user_id_str]['orders'] if o['order_id'] == order_id), None)
+    # ✅ Buyurtmani va xizmatni API orqali olish
+    order = await get_order(user_id, order_id)
     if not order:
-        logger.error(f"❌ Buyurtma topilmadi: user_id={user_id}, order_id={order_id}")
+        logger.error(f"❌ Buyurtma topilmadi: order_id={order_id}")
         await message.reply_text("❌ Buyurtma ma'lumotlari topilmadi.")
         return
 
-    # Summa va narxni olish
-    try:
-        service = next((s for s in get_services() if s['id'] == order['service_id']), None)
-        if not service:
-            raise ValueError("Xizmat topilmadi.")
-        amount = service['price']
-    except Exception as e:
-        logger.error(f"❌ Xizmat narxi topilmadi: order_id={order_id}, xato={e}")
-        await message.reply_text("❌ Xizmat narxi aniqlanmadi.")
+    service = await get_service(order["service_id"])
+    if not service:
+        logger.error(f"❌ Xizmat topilmadi: service_id={order['service_id']}")
+        await message.reply_text("❌ Xizmat aniqlanmadi.")
         return
 
-    # Invoys matnini shakllantirish
+    amount = service["price"]
+
+    # 💳 Invoys matni
     invoice_text = (
         f"👋 <b>Hurmatli mijoz,</b>\n\n"
         f"Quyidagi xizmat uchun to‘lovni amalga oshirishingizni so‘raymiz:\n\n"
@@ -2489,22 +2393,21 @@ async def pay_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"💰 <b>Narxi:</b> {amount} so‘m\n"
         f"🕒 <b>Boshlangan vaqti:</b> {order['timestamp']}\n\n"
         f"💳 <b>To‘lov ma'lumotlari:</b>\n"
-        f"  Karta raqami: ```8600 3104 7319 9081```\n"
-        f"  Summa: ```{amount} so‘m```\n\n"
+        f"  Karta raqami: <code>8600 3104 7319 9081</code>\n"
+        f"  Summa: <code>{amount} so‘m</code>\n\n"
         f"✅ To‘lovingizni o‘z vaqtida tasdiqlasangiz, xizmat ko‘rsatish tezroq boshlanadi.\n"
         f"💬 Ishonchli xizmat – qulay narxda!\n"
         f"⏱ To‘lov muddati: iloji boricha tezroq (bugun kechqurun soat 20:00 gacha).\n\n"
         f"📎 To‘lovni amalga oshirgandan so‘ng, chekni yuborish uchun pastdagi tugmani bosing."
     )
 
-    # Chekni yuborish tugmasi
     markup = InlineKeyboardMarkup([
         [InlineKeyboardButton("📤 Chekni yuborish", callback_data=f"send_receipt_{order_id}")]
     ])
 
-    # Grafik invoys yaratish
+    # 🖼 Grafik invoys (agar bor bo‘lsa)
     try:
-        invoice_image = create_invoice_image(order, amount)
+        invoice_image = create_invoice_image(order, amount)  # bu funksiyangiz mavjud bo‘lsa
         await context.bot.send_photo(
             chat_id=user_id,
             photo=invoice_image,
@@ -2513,7 +2416,7 @@ async def pay_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             reply_markup=markup
         )
     except Exception as e:
-        logger.error(f"❌ Grafik invoys yuborishda xato: user_id={user_id}, xato={e}")
+        logger.warning(f"📄 Fallback to text-only: {e}")
         await context.bot.send_message(
             chat_id=user_id,
             text=invoice_text,
@@ -2521,9 +2424,10 @@ async def pay_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             reply_markup=markup
         )
 
-    # To‘lov holatini yangilash
-    order['payment_status'] = 'pending'
-    save_users(USERS)
+    # 🔁 API orqali to‘lov holatini yangilash
+    await update_order_status(order_id, "pending")
+
+    # Botda vaqtincha saqlash (chek kelganda tekshirish uchun)
     context.bot_data[f"payment_{order_id}"] = {
         'user_id': user_id,
         'amount': amount,
@@ -2531,10 +2435,8 @@ async def pay_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         'thread_id': thread_id,
         'status': 'pending'
     }
-    save_bot_data(context)
-    logger.info(f"✅ Invoys yuborildi: user_id={user_id}, order_id={order_id}, amount={amount}")
 
-    # Operatorga tasdiq
+    logger.info(f"✅ Invoys yuborildi: user_id={user_id}, order_id={order_id}, amount={amount}")
     await message.reply_text("✅ Invoys mijozga yuborildi.")
 
 async def send_receipt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2553,14 +2455,15 @@ async def send_receipt_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
 async def receipt_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     order_id = context.user_data.get('waiting_for_receipt')
+
     if not order_id:
         logger.warning(f"❌ Chek kutilmagan: user_id={user_id}")
         await message.reply_text("❌ Chek yuborish uchun avval invoysdagi tugmani bosing.")
         return
 
-    # Chek faylini olish
+    # 📎 Chek faylini aniqlash
     file_id = None
     if message.photo:
         file_id = message.photo[-1].file_id
@@ -2570,22 +2473,25 @@ async def receipt_file_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("❌ Iltimos, chekni rasm yoki fayl sifatida yuboring.")
         return
 
-    # Mijozga tasdiq xabari
     await message.reply_text(
         "🧾 Chekingiz qabul qilindi. Moliya bo‘limi tasdiqlashini kuting...\n"
         "⏳ Holat: Ko‘rib chiqishga qabul qilindi."
     )
 
-    # General guruhga xabar yuborish
+    # 🧾 To‘lov ma'lumotlari
     payment_info = context.bot_data.get(f"payment_{order_id}")
     if not payment_info:
         logger.error(f"❌ To‘lov ma'lumotlari topilmadi: order_id={order_id}")
         await message.reply_text("❌ To‘lov ma'lumotlari topilmadi. Admin bilan bog‘laning.")
         return
 
-    order = next((o for o in USERS[user_id]['orders'] if o['order_id'] == order_id), None)
-    if not order:
-        logger.error(f"❌ Buyurtma topilmadi: user_id={user_id}, order_id={order_id}")
+    # 📡 API orqali foydalanuvchi va buyurtmani olish
+    order = await get_order(user_id, order_id)
+    user = await get_user(user_id)
+
+    if not order or not user:
+        logger.error(f"❌ Buyurtma yoki foydalanuvchi topilmadi: user_id={user_id}, order_id={order_id}")
+        await message.reply_text("❌ Buyurtma yoki foydalanuvchi topilmadi.")
         return
 
     receipt_text = (
@@ -2593,7 +2499,7 @@ async def receipt_file_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         f"🧾 Buyurtma raqami: #{order_id}\n"
         f"📌 Xizmat turi: {order['service_name']}\n"
         f"💰 Summa: {payment_info['amount']} so‘m\n"
-        f"👤 Mijoz: {USERS[user_id]['name']}\n"
+        f"👤 Mijoz: {user['name']}\n"
         f"🕒 Sana: {order['timestamp']}\n\n"
         f"📎 Quyida chek ilova qilingan."
     )
@@ -2619,16 +2525,18 @@ async def receipt_file_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode=ParseMode.HTML,
                 reply_markup=markup
             )
+
+        # 🟡 API orqali statusni yangilash
+        await update_order_status(order_id, "awaiting_confirmation")
         payment_info['status'] = 'awaiting_confirmation'
-        order['payment_status'] = 'awaiting_confirmation'
-        save_users(USERS)
-        save_bot_data(context)
+
         logger.info(f"✅ Chek guruhga yuborildi: user_id={user_id}, order_id={order_id}")
         context.user_data.pop('waiting_for_receipt', None)
+
     except Exception as e:
-        logger.error(f"❌ Chek guruhga yuborishda xato: user_id={user_id}, xato={e}")
+        logger.error(f"❌ Chek yuborishda xato: user_id={user_id}, xato={e}")
         await message.reply_text("❌ Chek yuborishda xato yuz berdi. Qayta urinib ko‘ring.")
-        
+                
 async def confirm_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -2645,88 +2553,44 @@ async def confirm_payment_handler(update: Update, context: ContextTypes.DEFAULT_
         await query.message.reply_text("❌ To‘lov ma'lumotlari topilmadi.")
         return
 
-    user_id = str(payment_info['user_id'])
-    order = next((o for o in USERS[user_id]['orders'] if o['order_id'] == order_id), None)
+    user_id = payment_info.get('user_id')
+
+    # 🔎 Buyurtma ma’lumotini API orqali olish
+    order = await get_order(user_id, order_id)
     if not order:
         logger.error(f"❌ Buyurtma topilmadi: user_id={user_id}, order_id={order_id}")
-        await query.message.reply_text("❌ Buyurtma ma'lumotlari topilmadi.")
+        await query.message.reply_text("❌ Buyurtma topilmadi.")
         return
 
-    # To‘lovni tasdiqlash
-    payment_info['status'] = 'confirmed'
-    order['payment_status'] = 'confirmed'
-    save_users(USERS)
-    save_bot_data(context)
-
-    # Mijozga tasdiq xabari
-    await context.bot.send_message(
-        chat_id=user_id,
-        text=(
-            f"✅ <b>To‘lovingiz tasdiqlandi!</b>\n\n"
-            f"🧾 Buyurtma raqami: #{order_id}\n"
-            f"📌 Xizmat: {order['service_name']}\n"
-            f"💰 Summa: {payment_info['amount']} so‘m\n\n"
-            f"🙏 Xizmatimizdan foydalanganingiz uchun rahmat! Xizmat ko‘rsatish boshlandi."
-        ),
-        parse_mode=ParseMode.HTML
-    )
-
-    # Operatorga tasdiq
-    await query.message.edit_reply_markup(reply_markup=None)
-    await query.message.reply_text(f"✅ To‘lov tasdiqlandi: buyurtma #{order_id}")
-    logger.info(f"✅ To‘lov tasdiqlandi: user_id={user_id}, order_id={order_id}")      
-
-async def confirm_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data
-    if not data.startswith("confirm_payment_"):
-        logger.warning(f"❌ Noto‘g‘ri callback data: {data}")
-        return
-
-    order_id = int(data.replace("confirm_payment_", ""))
-    payment_info = context.bot_data.get(f"payment_{order_id}")
-    if not payment_info:
-        logger.error(f"❌ To‘lov ma'lumotlari topilmadi: order_id={order_id}")
-        await query.message.reply_text("❌ To‘lov ma'lumotlari topilmadi.")
-        return
-
-    user_id = str(payment_info['user_id'])
-    order = next((o for o in USERS[user_id]['orders'] if o['order_id'] == order_id), None)
-    if not order:
-        logger.error(f"❌ Buyurtma topilmadi: user_id={user_id}, order_id={order_id}")
-        await query.message.reply_text("❌ Buyurtma ma'lumotlari topilmadi.")
-        return
-
-    # Tasdiqlangan vaqtni olish
+    # 📅 Tasdiqlangan vaqt
     confirmation_time = datetime.now(pytz.timezone('Asia/Tashkent')).strftime('%Y-%m-%d %H:%M:%S')
 
-    # To‘lovni tasdiqlash
+    # 🔄 API orqali to‘lov holatini yangilash
+    await update_order_status(order_id, "confirmed")
+
+    # Bot xotirasida holatni yangilaymiz
     payment_info['status'] = 'confirmed'
     payment_info['confirmation_time'] = confirmation_time
-    order['payment_status'] = 'confirmed'
-    save_users(USERS)
-    save_bot_data(context)
 
-    # Chek rasmini yaratish
+    # 🖼 Chek rasmi (agar kerak bo‘lsa)
     try:
         receipt_image = create_receipt_image(order, payment_info['amount'], confirmation_time)
     except Exception as e:
-        logger.error(f"❌ Chek rasmi yaratishda xato: user_id={user_id}, xato={e}")
+        logger.warning(f"❌ Chek rasmi yaratilmagan: {e}")
         receipt_image = None
 
-    # Mijozga tasdiq xabari va chek rasmi
+    # 📤 Mijozga tasdiq xabari
+    text = (
+        f"✅ <b>To‘lovingiz tasdiqlandi!</b>\n\n"
+        f"🧾 Buyurtma raqami: #{order_id}\n"
+        f"📌 Xizmat: {order['service_name']}\n"
+        f"💰 Summa: {payment_info['amount']} so‘m\n"
+        f"🕒 Tasdiqlangan vaqti: {confirmation_time}\n\n"
+        f"🙏 Xizmatimizdan foydalanganingiz uchun rahmat!\n"
+        f"📄 Quyida rasmiy to‘lov cheki ilova qilingan."
+    )
+
     try:
-        text = (
-            f"✅ <b>To‘lovingiz tasdiqlandi!</b>\n\n"
-            f"🧾 Buyurtma raqami: #{order_id}\n"
-            f"📌 Xizmat: {order['service_name']}\n"
-            f"💰 Summa: {payment_info['amount']} so‘m\n"
-            f"🕒 Tasdiqlangan vaqti: {confirmation_time}\n\n"
-            f"🙏 Xizmatimizdan foydalanganingiz uchun rahmat! Tez orada xizmat ko‘rsatishni boshlaymiz.\n"
-            f"📄 Quyida rasmiy to‘lov cheki ilova qilingan."
-        )
         if receipt_image:
             await context.bot.send_photo(
                 chat_id=user_id,
@@ -2740,19 +2604,19 @@ async def confirm_payment_handler(update: Update, context: ContextTypes.DEFAULT_
                 text=text,
                 parse_mode=ParseMode.HTML
             )
-    except telegram.error.BadRequest as e:
-        logger.error(f"❌ Mijozga xabar yuborishda xato: user_id={user_id}, xato={e}")
-        await query.message.reply_text("❌ Mijozga xabar yuborib bo‘lmadi.")
+    except Exception as e:
+        logger.error(f"❌ Mijozga xabar yuborishda xato: {e}")
+        await query.message.reply_text("❌ Mijozga xabar yuborilmadi.")
 
-    # Operatorga tasdiq
+    # ✅ Operatorga tugma olib tashlash va xabar
     try:
         await query.message.edit_reply_markup(reply_markup=None)
         await query.message.reply_text(f"✅ To‘lov tasdiqlandi: buyurtma #{order_id}")
     except Exception as e:
-        logger.error(f"❌ Operator xabarini yangilashda xato: order_id={order_id}, xato={e}")
+        logger.error(f"❌ Operator xabari yangilanmadi: {e}")
 
-    logger.info(f"✅ To‘lov tasdiqlandi va chek yuborildi: user_id={user_id}, order_id={order_id}")
-
+    logger.info(f"✅ To‘lov tasdiqlandi va xabar yuborildi: user_id={user_id}, order_id={order_id}")
+    
 async def admin_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     secret_key = os.getenv("SECRET_KEY", "default_secret")
