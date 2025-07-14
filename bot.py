@@ -465,7 +465,6 @@ ORDER_MESSAGE_TEMPLATE = (
  SEARCH_SERVICE, TOGGLE_VISIBILITY_ID, GROUP_BY_CATEGORY, SETTINGS_ADMIN) = range(25)  # SETTINGS_ADMIN qo'shildi 
 # Database setup
 os.makedirs('./database', exist_ok=True)
-if not os.path.exists(DATA_FILE):
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
         json.dump([], f)
 if not os.path.exists(ORDER_COUNTER_FILE):
