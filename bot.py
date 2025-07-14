@@ -1371,15 +1371,16 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     contact_method = context.user_data.get('contact_method')
     order_id = context.user_data.get('order_id')
     user_id = context.user_data.get('user_id')
+    user_name = context.user_data.get('name')  # foydalanuvchi ismini oldindan saqlagan bo‘lishingiz kerak
 
-    if not all([service, phone, contact_method, order_id, user_id]):
-        logger.error(f"❌ Ma'lumotlar to‘liq emas: service={service}, phone={phone}, contact_method={contact_method}, order_id={order_id}, user_id={user_id}")
+    if not all([service, phone, contact_method, order_id, user_id, user_name]):
+        logger.error(f"❌ Ma'lumotlar to‘liq emas: service={service}, phone={phone}, contact_method={contact_method}, order_id={order_id}, user_id={user_id}, name={user_name}")
         await update.message.reply_text("❌ Afsuski, ba'zi ma'lumotlar yetarli emas. Jarayonni /start orqali qayta boshlang.")
         context.user_data.clear()
         return
 
-    # 1. Telefon raqamini API orqali yangilash
-    await update_user(user_id, {"phone": phone})
+    # 1. Foydalanuvchini API orqali ro'yxatga olish / yangilash
+    await track_user(user_id, user_name, phone)
 
     # 2. Buyurtmani API orqali yaratish
     now = datetime.now(pytz.timezone("Asia/Tashkent")).strftime("%Y-%m-%d %H:%M:%S")
@@ -1394,7 +1395,7 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         "timestamp": now
     })
 
-    # 3. Guruhga yuboriladigan matn
+    # 3. Guruhga yuboriladigan xabar
     text = ORDER_MESSAGE_TEMPLATE.format(
         order_id=order_id,
         service_id=service['id'],
@@ -1404,7 +1405,6 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         contact_time=contact_time
     )
 
-    # 4. Forum topik va xabar yuborish
     try:
         topic = await context.bot.create_forum_topic(
             chat_id=GROUP_ID,
@@ -1428,6 +1428,7 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             'thread_id': topic.message_thread_id,
             'is_operator_started': False
         }
+
         context.bot_data[f"thread_{topic.message_thread_id}"] = {
             'user_id': user_id,
             'order_id': order_id
@@ -1441,7 +1442,7 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         return ConversationHandler.END
 
-    # 5. Mijozga xabarlar
+    # 4. Mijozga tasdiq va tabrik
     await update.message.reply_text(
         "✅ Buyurtmangiz qabul qilindi!\n\n"
         "Siz bilan belgilangan vaqtda bog‘lanamiz.\n"
