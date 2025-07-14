@@ -74,3 +74,8 @@ async def update_metrics(event: str, group: str = None):
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{BASE_URL}/metrics/", json=payload) as resp:
             return await resp.json()
+
+async def update_user(telegram_id, data):
+    async with aiohttp.ClientSession() as session:
+        async with session.put(f"{BASE_URL}/users/{telegram_id}", json=data) as resp:
+            return await resp.json()
