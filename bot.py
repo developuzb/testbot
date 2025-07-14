@@ -548,40 +548,17 @@ async def update_metrics(event: str, group: str = None):
 # Start funksiyasi
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    logger.info(f"/start buyrug‘i keldi. Foydalanuvchi ID: {user_id}")
-    user_id_str = str(user_id)
+    logger.info(f"/start buyrug‘i keldi. ID: {user_id}")
 
-    # ADMIN menyusi
-    if user_id == ADMIN_ID:
-        keyboard = [
-            ["➕ Xizmat qo‘shish"],
-            ["📋 Xizmatlar ro‘yxati"],
-            ["🗑 Xizmatni o‘chirish"]
-        ]
-        markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(
-            "👋 Assalomu alaykum, admin!\nAmallardan birini tanlang:",
-            reply_markup=markup
-        )
-        return ASK_ACTION
+    now_str = datetime.now(pytz.timezone("Asia/Tashkent")).strftime('%Y-%m-%d %H:%M:%S')
+    user_data = await fetch_user_profile(user_id)
 
-    now_str = datetime.now(pytz.timezone('Asia/Tashkent')).strftime('%Y-%m-%d %H:%M:%S')
-    user_id = update.effective_user.id
-    user = await fetch_user_profile(user_id)
-    # Yangi foydalanuvchi
-    if not user_data:
+    if not user_data or not user_data.get("name"):
+        # 🆕 Yangi foydalanuvchi
         test_group = random.choice(["A", "B"])
-        USERS[user_id_str] = {
-            'name': None,
-            'phone': None,
-            'orders': [],
-            'first_visit': now_str,
-            'is_loyal': False,
-            'test_group': test_group,
-            'rated_identifiers': []
-        }
-        update_metrics("first_visit")
-        update_metrics("test_group", group=test_group)
+        await update_metrics("first_visit")
+        await update_metrics("test_group", group=test_group)
+        await track_user(user_id, name=None, phone=None)
 
         welcome_quotes = [
             "😊 Assalomu alaykum! Xush kelibsiz.\nBu yerda xizmat tanlash oson va xavfsiz.",
@@ -590,34 +567,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📲 Buyurtma jarayoni silliq va ishonchli. Boshlaymizmi?",
             "🤝 Bu yerda siz doim e’tibordasiz. Xizmat tanlang — biz qolganini hal qilamiz."
         ]
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📩 Buyurtma berish", switch_inline_query_current_chat=""),
+             InlineKeyboardButton("🆘 Yordam kerak", callback_data="help_request")]
+        ])
         vaqt = work_time_string()
-        markup = InlineKeyboardMarkup([[  # soddalashtirilgan tugmalar
-            InlineKeyboardButton("📩 Buyurtma berish", switch_inline_query_current_chat=""),
-            InlineKeyboardButton("🆘 Yordam kerak", callback_data="help_request")
-        ]])
         await update.message.reply_text(
-            f"👋 Hurmatli Mijoz !\n\n<i><b>{random.choice(welcome_quotes)}</b></i>\n\n{vaqt}",
+            f"👋 Hurmatli mijoz!\n\n<i><b>{random.choice(welcome_quotes)}</b></i>\n\n{vaqt}",
             parse_mode=ParseMode.HTML,
             reply_markup=markup
-        )    
-    # Takroriy foydalanuvchi
-    update_metrics("repeat_user")
+        )
+        return ConversationHandler.END
 
+    # 🔁 Takroriy foydalanuvchi
+    await update_metrics("repeat_user")
     name = user_data.get("name", "Hurmatli mijoz")
+    test_group = user_data.get("test_group", "A")
+    is_loyal = user_data.get("is_loyal", False)
+    orders = user_data.get("orders", [])
+
     context.user_data["name"] = name
 
-    # Sodiq mijozni aniqlash va yozish
-    if len(user_data.get("orders", [])) >= 3:
-        if not user_data.get("is_loyal"):
-            await update_user(user_id, {"is_loyal": True})
-            update_metrics("loyal")
+    # 🎯 Sodiq mijozga aylanishi
+    if len(orders) >= 3 and not is_loyal:
+        await track_user(user_id, name=name, phone=user_data.get("phone"))
+        await update_metrics("loyal")
+        is_loyal = True
 
-    is_loyal = USERS[user_id_str].get("is_loyal", False)
-    test_group = USERS[user_id_str].get("test_group", "A")
-    salom = f"Hurmatli mijoz , {name}!"
     vaqt = work_time_string()
+    salom = f"Hurmatli mijoz, {name}!"
 
-    # Matnlar A/B va sodiqlik bo‘yicha
+    # 💬 Matnlar A/B yoki sodiqlikka qarab
     if is_loyal:
         quotes = [
             f"🌟 {name}, siz bizning qadrlangan mijozimizsiz.\nBugun siz uchun xizmatlar tayyor.",
@@ -637,16 +617,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🕒 Vaqtingizni tejang, biz sizga moslashamiz."
         ]
 
-    # Tugmalar
+    # ⌨️ Tugmalar
     markup_buttons = [
         [InlineKeyboardButton("📩 Buyurtma berish", switch_inline_query_current_chat="")],
         [InlineKeyboardButton("🆘 Yordam kerak", callback_data="help_request")],
         [InlineKeyboardButton("📜 Buyurtmalar tarixi", callback_data="show_history")],
         [InlineKeyboardButton("🎁 Sodiqlik dasturi", callback_data="bonus_services")]
     ]
-
     if is_loyal:
-        markup_buttons.append([InlineKeyboardButton(" Mening bonusim 🎁 ", callback_data="bonus_services")])
+        markup_buttons.append([InlineKeyboardButton("🎁 Mening bonusim", callback_data="bonus_services")])
 
     markup = InlineKeyboardMarkup(markup_buttons)
 
@@ -655,6 +634,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.HTML,
         reply_markup=markup
     )
+
     return ConversationHandler.END
 
 async def bonus_services_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
