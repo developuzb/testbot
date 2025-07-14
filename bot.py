@@ -540,7 +540,7 @@ async def update_metrics(event: str, group: str = None):
         payload["group"] = group
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/metrics/", json=payload) as resp:
+        async with session.post(f"{BASE_URL}/services/metrics/", json=payload) as resp:
             if resp.status != 200:
                 raise Exception(f"Metrics update failed: {resp.status}")
             return await resp.json()
