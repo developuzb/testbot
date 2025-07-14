@@ -24,6 +24,8 @@ executor = ThreadPoolExecutor(max_workers=2)
 import json
 import aiohttp
 from aiogram import types
+from api_client import update_user, create_order
+
 
 API_URL = "https://admin-panel-3cc1cb571383.herokuapp.com/api/services/"
 DEFAULT_IMAGE = "https://i.ibb.co/4w8mVTyH/Chat-GPT-Image-Jul-9-2025-04-30-59-AM.png"
