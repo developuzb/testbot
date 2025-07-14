@@ -960,7 +960,9 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("❌ Xizmat haqida ma'lumot olishda xatolik.")
         return ConversationHandler.END
 
-    order_id = get_next_order_number()
+    order_id = await get_next_order_number(service_id)
+    await update_last_order(service_id, order_id)
+
     context.user_data['selected_service'] = service_id
     context.user_data['order_id'] = order_id
     context.user_data['user_id'] = update.effective_user.id
