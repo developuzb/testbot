@@ -84,3 +84,11 @@ async def create_order(data):
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{BASE_URL}/orders/", json=data) as resp:
             return await resp.json()
+
+async def update_order_status(order_id, status):
+    async with aiohttp.ClientSession() as session:
+        async with session.put(
+            f"{BASE_URL}/orders/{order_id}",
+            json={"payment_status": status}
+        ) as resp:
+            return await resp.json() if resp.status == 200 else None
