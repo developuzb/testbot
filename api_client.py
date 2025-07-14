@@ -28,19 +28,19 @@ async def update_service_stats(service_id: int, cashback_given: int):
 async def track_user(user_id: int, name: str, phone: str):
     payload = {"id": user_id, "name": name, "phone": phone}
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/users/track", json=payload) as resp:
+        async with session.post(f"{BASE_URL}/services/users/track", json=payload) as resp:
             return await resp.json()
 
 async def fetch_user_profile(user_id: int):
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"{BASE_URL}/users/{user_id}") as resp:
+        async with session.get(f"{BASE_URL}/services/users/{user_id}") as resp:
             return await resp.json()
 
 # 💰 CASHBACK
 
 async def add_cashback_log(user_id: int, service_id: int, amount: int, direction: str):
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/cashback-log/", json={
+        async with session.post(f"{BASE_URL}/services/cashback-log/", json={
             "user_id": user_id,
             "service_id": service_id,
             "amount": amount,
@@ -50,14 +50,14 @@ async def add_cashback_log(user_id: int, service_id: int, amount: int, direction
 
 async def delete_cashback_log(log_id: int):
     async with aiohttp.ClientSession() as session:
-        async with session.delete(f"{BASE_URL}/cashback-log/{log_id}") as resp:
+        async with session.delete(f"{BASE_URL}/services/cashback-log/{log_id}") as resp:
             return await resp.json()
 
 # 📈 METRIKA / XABARLAR
 
 async def send_webhook_report(event_type: str, user_id: int, service_id: int):
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/webhook/send-report", json={
+        async with session.post(f"{BASE_URL}/services/webhook/send-report", json={
             "type": event_type,
             "user_id": user_id,
             "service_id": service_id
@@ -72,23 +72,23 @@ async def update_metrics(event: str, group: str = None):
     if group:
         payload["group"] = group
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/metrics/", json=payload) as resp:
+        async with session.post(f"{BASE_URL}/services/metrics/", json=payload) as resp:
             return await resp.json()
 
 async def update_user(telegram_id, data):
     async with aiohttp.ClientSession() as session:
-        async with session.put(f"{BASE_URL}/users/{telegram_id}", json=data) as resp:
+        async with session.put(f"{BASE_URL}/services/users/{telegram_id}", json=data) as resp:
             return await resp.json()
 
 async def create_order(data):
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/orders/", json=data) as resp:
+        async with session.post(f"{BASE_URL}/services/orders/", json=data) as resp:
             return await resp.json()
 
 async def update_order_status(order_id, status):
     async with aiohttp.ClientSession() as session:
         async with session.put(
-            f"{BASE_URL}/orders/{order_id}",
+            f"{BASE_URL}/services/orders/{order_id}",
             json={"payment_status": status}
         ) as resp:
             return await resp.json() if resp.status == 200 else None
