@@ -24,7 +24,7 @@ executor = ThreadPoolExecutor(max_workers=2)
 import json
 import aiohttp
 from aiogram import types
-from api_client import track_user, create_order, update_order_status
+from api_client import track_user, create_order, update_order_status, fetch_user_profile
 assert os.path.exists("api_client.py"), "❌ api_client.py topilmadi"
 
 
@@ -566,8 +566,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ASK_ACTION
 
     now_str = datetime.now(pytz.timezone('Asia/Tashkent')).strftime('%Y-%m-%d %H:%M:%S')
-    user_data = USERS.get(user_id_str)
-
+    user_id = update.effective_user.id
+    user = await fetch_user_profile(user_id)
     # Yangi foydalanuvchi
     if not user_data:
         test_group = random.choice(["A", "B"])
