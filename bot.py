@@ -3397,9 +3397,7 @@ def main():
         exit()
 
     app = Application.builder().token(TOKEN).build()
-    load_bot_data(app)
-    app.bot_data['services'] = get_services(admin=True)
-    migrate_services()
+
 
     conv_handler = ConversationHandler(
         entry_points=[
