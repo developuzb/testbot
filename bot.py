@@ -1302,19 +1302,23 @@ async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['phone'] = phone
     context.user_data['step'] = 'waiting_for_contact_method'
 
-user_id = update.effective_user.id
-await update_user(user_id, {"phone": phone})
+    user_id = update.effective_user.id
+    await update_user(user_id, {"phone": phone})
+
     markup = InlineKeyboardMarkup([
         [InlineKeyboardButton("📱 Shu bot orqali", callback_data="contact_bot")],
         [InlineKeyboardButton("☎️ Qo‘ng‘iroq orqali", callback_data="contact_call")],
         [InlineKeyboardButton("📩 SMS orqali", callback_data="contact_sms")],
         [InlineKeyboardButton("🔄 Boshqa usul orqali", callback_data="contact_other")]
     ])
+
     await update.message.reply_text(
         f"📞 Telefon raqamingiz: {phone}\nQanday usulda bog‘lanishimizni xohlaysiz?",
         reply_markup=markup
     )
+
     return WAIT_CONTACT_METHOD
+
 
 async def contact_method_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
