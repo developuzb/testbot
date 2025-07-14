@@ -931,8 +931,6 @@ async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return WAIT_PHONE
 
-from api_client import get_next_order_number, update_last_order
-
 async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.strip()
