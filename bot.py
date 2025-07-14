@@ -931,6 +931,8 @@ async def roziman_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return WAIT_PHONE
 
+from api_client import get_next_order_number, update_last_order
+
 async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.strip()
@@ -948,26 +950,29 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
         return ConversationHandler.END
 
     try:
-        import httpx
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"https://admin-panel-3cc1cb571383.herokuapp.com/api/services/{service_id}")
-        if resp.status_code != 200:
-            await update.message.reply_text("❌ Xizmat topilmadi.")
-            return ConversationHandler.END
-        service = resp.json()
+        service = await fetch_service(service_id)
     except Exception as e:
         logger.error(f"APIdan xizmatni olishda xatolik: {e}")
         await update.message.reply_text("❌ Xizmat haqida ma'lumot olishda xatolik.")
         return ConversationHandler.END
 
-    order_id = await get_next_order_number(service_id)
-    await update_last_order(service_id, order_id)
+    try:
+        order_id = await get_next_order_number(service_id)
+        await update_last_order(service_id, order_id)
+    except Exception as e:
+        logger.error(f"Buyurtma raqami olishda yoki yangilashda xato: {e}")
+        await update.message.reply_text("❌ Buyurtma raqami yaratilishda xatolik.")
+        return ConversationHandler.END
 
-    context.user_data['selected_service'] = service_id
-    context.user_data['order_id'] = order_id
-    context.user_data['user_id'] = update.effective_user.id
-    context.user_data['step'] = 'waiting_for_phone'
+    # Saqlash
+    context.user_data.update({
+        'selected_service': service_id,
+        'order_id': order_id,
+        'user_id': update.effective_user.id,
+        'step': 'waiting_for_phone'
+    })
 
+    # Xizmat tafsilotlari
     name = service.get("name", "—")
     price = service.get("price", 0)
     original = service.get("original_price", price)
@@ -993,15 +998,13 @@ async def trigger_inline_handler(update: Update, context: ContextTypes.DEFAULT_T
         f"#Buyurtma: <code>#{order_id}</code>"
     )
 
-    # Tugmalar
-    buttons = [
+    markup = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("📂 Boshqa xizmat tanlash", callback_data="restart"),
             InlineKeyboardButton("🆘 Yordam kerak", callback_data="help_request")
         ],
         [InlineKeyboardButton("✅ Roziman", callback_data="confirm_service")]
-    ]
-    markup = InlineKeyboardMarkup(buttons)
+    ])
 
     try:
         if image:
