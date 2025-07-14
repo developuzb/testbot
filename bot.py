@@ -556,8 +556,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_data or not user_data.get("name"):
         # 🆕 Yangi foydalanuvchi
         test_group = random.choice(["A", "B"])
-        await update_metrics("first_visit")
-        await update_metrics("test_group", group=test_group)
         await track_user(user_id, name=None, phone=None)
 
         welcome_quotes = [
@@ -579,8 +577,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    # 🔁 Takroriy foydalanuvchi
-    await update_metrics("repeat_user")
     name = user_data.get("name", "Hurmatli mijoz")
     test_group = user_data.get("test_group", "A")
     is_loyal = user_data.get("is_loyal", False)
@@ -591,7 +587,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 🎯 Sodiq mijozga aylanishi
     if len(orders) >= 3 and not is_loyal:
         await track_user(user_id, name=name, phone=user_data.get("phone"))
-        await update_metrics("loyal")
         is_loyal = True
 
     vaqt = work_time_string()
