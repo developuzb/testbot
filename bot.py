@@ -1334,10 +1334,6 @@ async def contact_method_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     return WAIT_CONTACT_TIME
 
-from api_client import update_user, create_order
-from datetime import datetime
-import pytz
-
 async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     step = context.user_data.get('step')
     if step != 'waiting_for_time':
@@ -1354,7 +1350,9 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     contact_method = context.user_data.get('contact_method')
     order_id = context.user_data.get('order_id')
     user_id = context.user_data.get('user_id')
-    user_name = context.user_data.get('name')  # foydalanuvchi ismini oldindan saqlagan bo‘lishingiz kerak
+    user_name = update.effective_user.full_name or f"@{update.effective_user.username}" or "Foydalanuvchi"
+
+    
 
     if not all([service, phone, contact_method, order_id, user_id, user_name]):
         logger.error(f"❌ Ma'lumotlar to‘liq emas: service={service}, phone={phone}, contact_method={contact_method}, order_id={order_id}, user_id={user_id}, name={user_name}")
