@@ -6,11 +6,6 @@ BASE_URL = "https://admin-panel-3cc1cb571383.herokuapp.com/api"
 
 # 🧾 XIZMATLAR
 
-async def fetch_services():
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"{BASE_URL}/services/") as resp:
-            return await resp.json()
-
 async def fetch_service(service_id: int):
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{BASE_URL}/services/{service_id}") as resp:
