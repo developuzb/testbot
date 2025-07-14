@@ -1335,32 +1335,45 @@ async def contact_method_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     return WAIT_CONTACT_TIME
 
-async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    step = context.user_data.get('step')
-    if step != 'waiting_for_time':
-        logger.warning(f"contact_time_handler: noto‘g‘ri step={step}")
-        await update.message.reply_text("⚠️ Jarayon noto‘g‘ri ketdi. Iltimos, /start buyrug‘i bilan qaytadan urinib ko‘ring.")
-        return
 
+async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     contact_time = update.message.text.strip()
-    context.user_data['contact_time'] = contact_time
     logger.info(f"🕒 Aloqa vaqti: {contact_time}")
 
-    service = context.user_data.get('selected_service')
-    phone = context.user_data.get('phone')
-    contact_method = context.user_data.get('contact_method')
-    order_id = context.user_data.get('order_id')
-    user_id = context.user_data.get('user_id')
+    # 🔽 Ma'lumotlar
+    service_id = context.user_data.get("selected_service")
+    phone = context.user_data.get("phone")
+    contact_method = context.user_data.get("contact_method")
+    order_id = context.user_data.get("order_id")
+    user_id = context.user_data.get("user_id")
+
+    # 🔁 Avtomatik ism olish
     user_name = update.effective_user.full_name or f"@{update.effective_user.username}" or "Foydalanuvchi"
 
-    
+    try:
+        service = await fetch_service(service_id)
+    except Exception as e:
+        logger.error(f"❌ Xizmatni olishda xato: {e}")
+        await update.message.reply_text("❌ Xizmat ma'lumotlarini olishda xatolik yuz berdi.")
+        return ConversationHandler.END
 
-    if not all([service, phone, contact_method, order_id, user_id, user_name]):
+    if not all([service, phone, contact_method, order_id, user_id, user_name, contact_time]):
         logger.error(f"❌ Ma'lumotlar to‘liq emas: service={service}, phone={phone}, contact_method={contact_method}, order_id={order_id}, user_id={user_id}, name={user_name}")
         await update.message.reply_text("❌ Afsuski, ba'zi ma'lumotlar yetarli emas. Jarayonni /start orqali qayta boshlang.")
         context.user_data.clear()
-        return
+        return ConversationHandler.END
 
+    order_data = {
+        "order_id": order_id,
+        "service_id": service["id"],
+        "service_name": service["name"],
+        "user_id": user_id,
+        "phone": phone,
+        "contact_method": contact_method,
+        "contact_time": contact_time,
+        "name": user_name
+    }
+    
     # 1. Foydalanuvchini API orqali ro'yxatga olish / yangilash
     await track_user(user_id, user_name, phone)
 
