@@ -67,28 +67,32 @@ async def send_webhook_report(event_type: str, user_id: int, service_id: int):
 # 🗓 Metrika – sana bilan (ixtiyoriy, agar kerak bo‘lsa)
 
 async def update_metrics(event: str, group: str = None):
+    from datetime import datetime
+    import pytz
     now = datetime.now(pytz.timezone("Asia/Tashkent")).strftime("%Y-%m-%d")
     payload = {"event": event, "date": now}
     if group:
         payload["group"] = group
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/services/metrics/", json=payload) as resp:
+
+    timeout = aiohttp.ClientTimeout(total=10)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(f"{BASE_URL}/metrics/", json=payload) as resp:
             return await resp.json()
 
 async def update_user(telegram_id, data):
     async with aiohttp.ClientSession() as session:
-        async with session.put(f"{BASE_URL}/services/users/{telegram_id}", json=data) as resp:
+        async with session.put(f"{BASE_URL}/users/{telegram_id}", json=data) as resp:
             return await resp.json()
 
 async def create_order(data):
     async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/services/orders/", json=data) as resp:
+        async with session.post(f"{BASE_URL}/orders/", json=data) as resp:
             return await resp.json()
 
 async def update_order_status(order_id, status):
     async with aiohttp.ClientSession() as session:
         async with session.put(
-            f"{BASE_URL}/services/orders/{order_id}",
+            f"{BASE_URL}/orders/{order_id}",
             json={"payment_status": status}
         ) as resp:
             return await resp.json() if resp.status == 200 else None
