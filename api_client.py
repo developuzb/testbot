@@ -97,14 +97,3 @@ async def update_order_status(order_id, status):
         ) as resp:
             return await resp.json() if resp.status == 200 else None
 
-@router.patch("/services/{service_id}")
-async def update_service_partial(service_id: int, update_data: dict):
-    service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
-    if not service:
-        raise HTTPException(status_code=404, detail="Service not found")
-    
-    for key, value in update_data.items():
-        setattr(service, key, value)
-    
-    db.commit()
-    return {"status": "updated"}
