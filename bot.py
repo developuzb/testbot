@@ -463,14 +463,6 @@ ORDER_MESSAGE_TEMPLATE = (
  EDIT_SERVICE_ID, EDIT_SERVICE_FIELD, EDIT_SERVICE_NAME, EDIT_SERVICE_PRICE,
  EDIT_SERVICE_PAYMENTS, EDIT_SERVICE_IMAGE, EDIT_SERVICE_CATEGORY, DELETE_SERVICE_ID,
  SEARCH_SERVICE, TOGGLE_VISIBILITY_ID, GROUP_BY_CATEGORY, SETTINGS_ADMIN) = range(25)  # SETTINGS_ADMIN qo'shildi 
-# Database setup
-os.makedirs('./database', exist_ok=True)
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump([], f)
-if not os.path.exists(ORDER_COUNTER_FILE):
-    with open(ORDER_COUNTER_FILE, 'w', encoding='utf-8') as f:
-        json.dump({"order_id": 172999}, f)
-
 
 def get_services(admin=False):
     try:
