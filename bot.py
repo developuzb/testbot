@@ -553,7 +553,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now_str = datetime.now(pytz.timezone("Asia/Tashkent")).strftime('%Y-%m-%d %H:%M:%S')
     user_data = await fetch_user_profile(user_id)
 
-    if not user_data or not user_data.get("name"):
+    if not user_data or not user_data.get("ism"):
         # 🆕 Yangi foydalanuvchi
         test_group = random.choice(["A", "B"])
         await track_user(user_id, name=None, phone=None)
@@ -1154,7 +1154,7 @@ async def help_request_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = query.from_user.id
 
     # Foydalanuvchi ismini aniqlash
-    name = context.bot_data.get(f"user_{user_id}", {}).get("name") or "Hurmatli mijoz"
+    name = context.bot_data.get(f"user_{user_id}", {}).get("ism") or "Hurmatli mijoz"
     name = str(name)[:50]
     logger.info(f"🆘 Yordam so‘rovi boshlandi: user_id={user_id}, name={name}")
 
