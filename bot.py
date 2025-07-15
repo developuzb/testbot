@@ -1461,7 +1461,8 @@ async def handle_help_question(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     user_id = str(update.effective_user.id)
-    name = USERS.get(user_id, {}).get('name', update.effective_user.full_name or "Foydalanuvchi")
+    user_data = await fetch_user_profile(user_id)
+    user_name = user_data.get("name", "Noma’lum foydalanuvchi")
     question = update.message.text.strip()
     logger.info(f"Yordam so‘rovi: user_id={user_id}, savol={question}")
 
@@ -1662,8 +1663,8 @@ async def accept_help_button_handler(update: Update, context: ContextTypes.DEFAU
 
     user_id = int(data.replace("accept_help_", ""))
     user_id_str = str(user_id)
-    name = USERS.get(user_id_str, {}).get('name', query.from_user.full_name or "Foydalanuvchi")
-
+    user_data = await fetch_user_profile(user_id)
+    user_name = user_data.get("name", "Noma’lum foydalanuvchi")
     # Tugmani olib tashlaymiz
     try:
         await query.edit_message_reply_markup(reply_markup=None)
@@ -1690,7 +1691,8 @@ async def accept_help_button_handler(update: Update, context: ContextTypes.DEFAU
 async def user_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     message = update.message
-    name = USERS.get(user_id, {}).get('name') or update.effective_user.full_name or "Mijoz"
+    user_data = await fetch_user_profile(user_id)
+    user_name = user_data.get("name", "Noma’lum foydalanuvchi")
 
     info = context.bot_data.get(f"user_{user_id}")
     if not info or "thread_id" not in info:
@@ -1903,7 +1905,9 @@ async def universal_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Foydalanuvchi ma’lumotlarini tekshirish
-    user_name = USERS.get(str(user_id), {}).get('name', 'Noma’lum foydalanuvchi')
+    user_data = await fetch_user_profile(user_id)
+    user_name = user_data.get("name", "Noma’lum foydalanuvchi")
+
     if not user_name:
         user_name = f"ID {user_id} foydalanuvchisi"
 
