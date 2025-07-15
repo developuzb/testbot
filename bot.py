@@ -2151,7 +2151,8 @@ async def user_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # ✅ API orqali buyurtma va foydalanuvchi ma'lumotlarini olish
         order = await get_order(user_id, order_id)
-        user = await get_user(user_id)
+        user = await fetch_user_profile(user_id)
+
 
         if not order or not user:
             await update.message.reply_text("❌ Buyurtma yoki foydalanuvchi topilmadi.")
@@ -2217,7 +2218,7 @@ async def user_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 👤 Foydalanuvchi ismini API orqali olish
-    user = await get_user(user_id)
+    user = await fetch_user_profile(user_id)
     if not user:
         await update.message.reply_text("❌ Foydalanuvchi topilmadi.")
         return
@@ -2485,7 +2486,7 @@ async def receipt_file_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # 📡 API orqali foydalanuvchi va buyurtmani olish
     order = await get_order(user_id, order_id)
-    user = await get_user(user_id)
+    user = await fetch_user_profile(user_id)
 
     if not order or not user:
         logger.error(f"❌ Buyurtma yoki foydalanuvchi topilmadi: user_id={user_id}, order_id={order_id}")
