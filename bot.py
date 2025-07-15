@@ -729,7 +729,7 @@ async def save_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Yangi admin ID ni saqlash
         context.bot_data['settings'] = context.bot_data.get('settings', {})
         context.bot_data['settings']['admin_id'] = new_admin_id
-        save_bot_data(context)
+        #save_bot_data(context)
         
         # ADMIN_ID ni yangilash (global o'zgaruvchi)
         global ADMIN_ID
@@ -1221,7 +1221,7 @@ async def help_request_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             "user_id": user_id,
             "order_id": None
         }
-        save_bot_data(context)
+       # save_bot_data(context)
         logger.info(f"✅ Yordam so‘rovi guruhga yuborildi: thread_id={topic.message_thread_id}")
 
         # Foydalanuvchiga javob
@@ -1502,7 +1502,7 @@ async def handle_help_question(update: Update, context: ContextTypes.DEFAULT_TYP
             "order_id": None
         }
         logger.info(f"✅ Yordam so‘rovi guruhga yuborildi: user_id={user_id}, thread_id={topic.message_thread_id}")
-        save_bot_data(context)
+        #save_bot_data(context)
         context.user_data.pop("step", None)
     except Exception as e:
         logger.error(f"❌ Yordam so‘rovini guruhga yuborishda xato: user_id={user_id}, xato={e}")
@@ -1634,7 +1634,7 @@ async def group_order_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
                 if f"user_{user_id}" in context.bot_data:
                     context.bot_data[f"user_{user_id}"]['is_operator_started'] = True
                     logger.info(f"✅ Operator suhbatni boshladi: user_id={user_id}, bot_data={context.bot_data[f'user_{user_id}']}")
-                    save_bot_data(context)  # Qo‘shish
+                    #save_bot_data(context)  # Qo‘shish
             except telegram.error.BadRequest as e:
                 logger.error(f"❌ Foydalanuvchiga xabar yuborishda xato: user_id={user_id}, xato={e}")
                 await query.message.reply_text(f"❌ Foydalanuvchiga xabar yuborib bo‘lmadi: {e}")
@@ -1682,7 +1682,7 @@ async def accept_help_button_handler(update: Update, context: ContextTypes.DEFAU
         if f"user_{user_id}" in context.bot_data:
             context.bot_data[f"user_{user_id}"]['is_operator_started'] = True
             logger.info(f"✅ Operator suhbatni boshladi: user_id={user_id}, bot_data={context.bot_data[f'user_{user_id}']}")
-            save_bot_data(context)  # Saqlash
+            # save_bot_data(context)  # Saqlash
     except telegram.error.BadRequest as e:
         logger.error(f"❌ Operator ulanayotganda mijozga xabar yuborilmadi: user_id={user_id}, xato={e}")
         await query.message.reply_text(f"❌ Foydalanuvchiga xabar yuborib bo‘lmadi: {e}")
