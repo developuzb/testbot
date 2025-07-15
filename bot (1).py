@@ -243,7 +243,7 @@ def create_invoice_image(order, amount):
         box_size=4,
         border=2,
     )
-    qr.add_data("https://t.me/texnosetUZ")
+    qr.add_data("https://t.me/texnoset")
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
     qr_img = qr_img.resize((100, 100), Image.Resampling.LANCZOS)

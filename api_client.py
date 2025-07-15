@@ -116,3 +116,12 @@ async def update_last_order(service_id: int, new_order_id: int):
         async with session.patch(f"{BASE_URL}/services/{service_id}", json={"last_order": new_order_id}) as resp:
             if resp.status not in (200, 204):
                 raise Exception(f"❌ last_order yangilanmadi: status={resp.status}")
+
+async def get_order(user_id: int, order_id: int):
+    url = f"{BASE_URL}/api/orders/{order_id}?user_id={user_id}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                return await resp.json()
+            else:
+                return None

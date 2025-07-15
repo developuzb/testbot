@@ -25,7 +25,7 @@ executor = ThreadPoolExecutor(max_workers=2)
 import json
 import aiohttp
 from aiogram import types
-from api_client import track_user, create_order, update_order_status, fetch_user_profile, get_next_order_number, update_last_order, fetch_service
+from api_client import track_user, create_order, update_order_status, fetch_user_profile, get_next_order_number, update_last_order, fetch_service, get_order
 assert os.path.exists("api_client.py"), "❌ api_client.py topilmadi"
 
 
