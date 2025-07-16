@@ -93,10 +93,14 @@ async def create_order(data):
     print("➡️ BUYURTMA YUBORILMOQDA:")
     print(json.dumps(data, indent=2))
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"{BASE_URL}/orders/", json=data) as resp:
-            text = await resp.text()
-            print("📥 API JAVOB:", resp.status, text)
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{BASE_URL}/orders/", json=data) as resp:
+                text = await resp.text()
+                print("📥 API JAVOB:", resp.status, text)
+                return await resp.json()
+    except Exception as e:
+        print("❌ API so‘rovda xatolik:", e)
 
 async def update_order_status(order_id, status):
     async with aiohttp.ClientSession() as session:
