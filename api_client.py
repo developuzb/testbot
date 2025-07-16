@@ -87,7 +87,7 @@ async def update_user(telegram_id, data):
         async with session.put(f"{BASE_URL}/users/{telegram_id}", json=data) as resp:
             return await resp.json()
 
-print("BUYURTMA YUBORILAYAPTI:", order_data)
+logger.warning(f"BUYURTMA JSON: {order_data}")
 
 async def create_order(data):
     async with aiohttp.ClientSession() as session:
