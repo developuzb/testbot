@@ -89,13 +89,19 @@ async def update_user(telegram_id, data):
 
 
 async def create_order(data):
-    print("BUYURTMA JSON:")
     import json
-    print(json.dumps(data, indent=2))  # << mana shu joyga!
+    print("➡️ YUBORILAYOTGAN BUYURTMA:")
+    print(json.dumps(data, indent=2))
 
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{BASE_URL}/orders/", json=data) as resp:
-            return await resp.json()
+            text = await resp.text()
+            print("📥 API JAVOB:", resp.status, text)
+
+            if resp.status == 201 or resp.status == 200:
+                return await resp.json()
+            else:
+                raise Exception(f"❌ BUYURTMA XATOLIK: status={resp.status}, detail={text}")
 
 async def update_order_status(order_id, status):
     async with aiohttp.ClientSession() as session:
