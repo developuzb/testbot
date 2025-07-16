@@ -1046,16 +1046,9 @@ async def info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"/info komandasi ishlamay qoldi: {e}")
         return
 
-@dp.message_handler(state=OrderState.order_step)
-async def order_step(message: types.Message, state: FSMContext):
+async def order_step(message: types.Message, user_name: str, phone: str, contact_time: str, service: dict):
     user_id = message.from_user.id
-    contact_time = message.text.strip()
-    data = await state.get_data()
-
-    user_name = data.get("user_name", "Ismsiz")
-    phone = data.get("phone", "+998000000000")
-    service = data.get("selected_service")
-    contact_method = data.get("contact_method", "Telegram")
+    contact_method = "Telegram"  # yoki siz tanlagan metod
     order_id = await get_next_order_number(service["id"])
 
     order_data = {
@@ -1083,8 +1076,6 @@ async def order_step(message: types.Message, state: FSMContext):
         f"✅ Buyurtmangiz qabul qilindi!\n\n📋 Xizmat: {service['name']}\n📞 Tel: {phone}\n🕒 Vaqt: {contact_time}",
         reply_markup=main_menu()
     )
-
-    await state.finish()
 
 
 async def fallback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
