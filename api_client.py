@@ -118,7 +118,7 @@ async def update_last_order(service_id: int, new_order_id: int):
                 raise Exception(f"❌ last_order yangilanmadi: status={resp.status}")
 
 async def get_order(user_id: int, order_id: int):
-    url = f"{BASE_URL}/api/orders/{order_id}?user_id={user_id}"
+    url = f"{BASE_URL}/orders/{order_id}?user_id={user_id}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             if resp.status == 200:
