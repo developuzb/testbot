@@ -2399,7 +2399,7 @@ async def pay_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await message.reply_text("❌ Buyurtma ma'lumotlari topilmadi.")
         return
 
-    service = await get_service(order["service_id"])
+    service = await fetch_service(order["service_id"])
     if not service:
         logger.error(f"❌ Xizmat topilmadi: service_id={order['service_id']}")
         await message.reply_text("❌ Xizmat aniqlanmadi.")
