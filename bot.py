@@ -1046,6 +1046,46 @@ async def info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"/info komandasi ishlamay qoldi: {e}")
         return
 
+@dp.message_handler(state=OrderState.order_step)
+async def order_step(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    contact_time = message.text.strip()
+    data = await state.get_data()
+
+    user_name = data.get("user_name", "Ismsiz")
+    phone = data.get("phone", "+998000000000")
+    service = data.get("selected_service")
+    contact_method = data.get("contact_method", "Telegram")
+    order_id = await get_next_order_number(service["id"])
+
+    order_data = {
+        "order_id": order_id,
+        "user_id": user_id,
+        "service_id": service["id"],
+        "service_name": service["name"],
+        "contact_method": contact_method,
+        "contact_time": contact_time,
+        "name": user_name,
+        "phone": phone
+    }
+
+    import json
+    print("✅ create_order chaqirildi")
+    print("order_data:")
+    print(json.dumps(order_data, indent=2))
+
+    try:
+        await create_order(order_data)
+    except Exception as e:
+        print("❌ create_order xatolik:", e)
+
+    await message.answer(
+        f"✅ Buyurtmangiz qabul qilindi!\n\n📋 Xizmat: {service['name']}\n📞 Tel: {phone}\n🕒 Vaqt: {contact_time}",
+        reply_markup=main_menu()
+    )
+
+    await state.finish()
+
 
 async def fallback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -1332,27 +1372,6 @@ async def contact_method_handler(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     return WAIT_CONTACT_TIME
-
-
-    order_data = {
-        "order_id": order_id,
-        "user_id": user_id,
-        "service_id": service["id"],
-        "service_name": service["name"],
-        "contact_method": contact_method or "Telegram",
-        "contact_time": contact_time or "12:00",
-        "name": name or "Ismsiz",
-        "phone": phone or "+998000000000"
-    }
-
-    print("✅ create_order chaqirildi")
-    print("order_data:")
-    print(json.dumps(order_data, indent=2))
-
-    try:
-        await create_order(order_data)
-    except Exception as e:
-        print("❌ create_order xatolik:", e)
     
 
 async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
