@@ -21,7 +21,6 @@ import aiofiles
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 executor = ThreadPoolExecutor(max_workers=2)
-import json
 import aiohttp
 from aiogram import types
 from api_client import track_user, create_order, update_order_status, fetch_user_profile, get_next_order_number, update_last_order, fetch_service, get_order, update_user
@@ -1364,14 +1363,23 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     order_data = {
         "order_id": order_id,
+        "user_id": user_id,
         "service_id": service["id"],
         "service_name": service["name"],
-        "user_id": user_id,
-        "phone": phone,
-        "contact_method": contact_method,
-        "contact_time": contact_time,
-        "name": user_name
+        "contact_method": contact_method or "Telegram",
+        "contact_time": contact_time or "12:00",
+        "name": name or "Ismsiz",
+        "phone": phone or "+998000000000"
     }
+
+    print("✅ create_order chaqirildi")
+    print("order_data:")
+    print(json.dumps(order_data, indent=2))
+
+    try:
+        await create_order(order_data)
+    except Exception as e:
+        print("❌ create_order xatolik:", e)
     
     # 1. Foydalanuvchini API orqali ro'yxatga olish / yangilash
     await track_user(user_id, user_name, phone)
