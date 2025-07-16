@@ -1377,17 +1377,22 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await track_user(user_id, user_name, phone)
 
     # 2. Buyurtmani API orqali yaratish
-    now = datetime.now(pytz.timezone("Asia/Tashkent")).strftime("%Y-%m-%d %H:%M:%S")
-    await create_order({
+    order_data = {
         "order_id": order_id,
         "user_id": user_id,
         "service_id": service["id"],
         "service_name": service["name"],
-        "contact_method": contact_method,
-        "contact_time": contact_time,
-        "status": "pending",
-        "timestamp": now
-    })
+        "contact_method": contact_method or "Telegram",
+        "contact_time": contact_time or "12:00",
+        "name": name or "Ismsiz",                      # ✅ majburiy
+        "phone": phone or "+998000000000"              # ✅ majburiy
+    }
+
+    print("✅ create_order chaqirildi")
+    print("Yuboriladigan order_data:")
+    print(json.dumps(order_data, indent=2))
+
+    await create_order(order_data)
 
     # 3. Guruhga yuboriladigan xabar
     text = ORDER_MESSAGE_TEMPLATE.format(
