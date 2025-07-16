@@ -1392,11 +1392,29 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         return ConversationHandler.END
 
-    # 1. Foydalanuvchini API orqali ro'yxatga olish / yangilash
+    # ✅ Foydalanuvchini API orqali ro'yxatga olish / yangilash
     await track_user(user_id, user_name, phone)
 
+    # ✅ Buyurtmani API orqali yaratish
+    try:
+        order_data = {
+            "order_id": order_id,
+            "user_id": user_id,
+            "service_id": service['id'],
+            "service_name": service['name'],
+            "contact_method": contact_method,
+            "contact_time": contact_time,
+            "name": user_name,
+            "phone": phone
+        }
+        await create_order(order_data)
+        logger.info(f"✅ Buyurtma APIga yuborildi: {order_id}")
+    except Exception as e:
+        logger.error(f"❌ Buyurtmani APIga yuborishda xato: {e}")
+        await update.message.reply_text("❌ Buyurtmani saqlashda xato yuz berdi.")
+        return ConversationHandler.END
 
-    # 3. Guruhga yuboriladigan xabar
+    # 🧵 Forum topic ochish va xabar yuborish
     text = ORDER_MESSAGE_TEMPLATE.format(
         order_id=order_id,
         service_id=service['id'],
@@ -1438,12 +1456,12 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.info(f"✅ Buyurtma yuborildi: order_id={order_id}, thread_id={topic.message_thread_id}")
 
     except Exception as e:
-        logger.error(f"⚠️ Buyurtma yuborishda xato: user_id={user_id}, xato={e}")
+        logger.error(f"⚠️ Buyurtmani yuborishda xato: user_id={user_id}, xato={e}")
         await update.message.reply_text("⚠️ Buyurtmani yuborishda muammo yuz berdi. Iltimos, keyinroq urinib ko‘ring.")
         context.user_data.clear()
         return ConversationHandler.END
 
-    # 4. Mijozga tasdiq va tabrik
+    # 📩 Mijozga tasdiq xabari
     await update.message.reply_text(
         "✅ Buyurtmangiz qabul qilindi!\n\n"
         "Siz bilan belgilangan vaqtda bog‘lanamiz.\n"
