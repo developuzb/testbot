@@ -19,9 +19,12 @@ async def update_service_stats(service_id: int, cashback_given: int):
             return await resp.json()
 
 # 👤 FOYDALANUVCHILAR
-
 async def track_user(user_id: int, name: str, phone: str):
-    payload = {"id": user_id, "name": name, "phone": phone}
+    payload = {
+        "user_id": user_id,
+        "name": name,
+        "phone": phone
+    }
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{BASE_URL}/services/users/track", json=payload) as resp:
             return await resp.json()
