@@ -117,11 +117,16 @@ async def update_last_order(service_id: int, new_order_id: int):
             if resp.status not in (200, 204):
                 raise Exception(f"❌ last_order yangilanmadi: status={resp.status}")
 
-async def get_order(user_id: int, order_id: int):
-    url = f"{BASE_URL}/api/orders/{order_id}?user_id={user_id}"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                return await resp.json()
-            else:
-                return None
+@router.get("/api/orders/{order_id}")
+def get_order(order_id: int, user_id: int = Query(...), db: sqlite3.Connection = Depends(get_db)):
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            "SELECT * FROM orders WHERE id = ? AND user_id = ?", (order_id, user_id))
+        order = cursor.fetchone()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return dict(order)
+    except Exception as e:
+        logger.exception(f"Xatolik /api/orders/{order_id}: {e}")
+        raise HTTPException(status_code=500, detail="Buyurtmani olishda xatolik yuz berdi.")
