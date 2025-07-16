@@ -1334,6 +1334,27 @@ async def contact_method_handler(update: Update, context: ContextTypes.DEFAULT_T
     return WAIT_CONTACT_TIME
 
 
+    order_data = {
+        "order_id": order_id,
+        "user_id": user_id,
+        "service_id": service["id"],
+        "service_name": service["name"],
+        "contact_method": contact_method or "Telegram",
+        "contact_time": contact_time or "12:00",
+        "name": name or "Ismsiz",
+        "phone": phone or "+998000000000"
+    }
+
+    print("✅ create_order chaqirildi")
+    print("order_data:")
+    print(json.dumps(order_data, indent=2))
+
+    try:
+        await create_order(order_data)
+    except Exception as e:
+        print("❌ create_order xatolik:", e)
+    
+
 async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     contact_time = update.message.text.strip()
     logger.info(f"🕒 Aloqa vaqti: {contact_time}")
@@ -1361,46 +1382,9 @@ async def contact_time_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         return ConversationHandler.END
 
-    order_data = {
-        "order_id": order_id,
-        "user_id": user_id,
-        "service_id": service["id"],
-        "service_name": service["name"],
-        "contact_method": contact_method or "Telegram",
-        "contact_time": contact_time or "12:00",
-        "name": name or "Ismsiz",
-        "phone": phone or "+998000000000"
-    }
-
-    print("✅ create_order chaqirildi")
-    print("order_data:")
-    print(json.dumps(order_data, indent=2))
-
-    try:
-        await create_order(order_data)
-    except Exception as e:
-        print("❌ create_order xatolik:", e)
-    
     # 1. Foydalanuvchini API orqali ro'yxatga olish / yangilash
     await track_user(user_id, user_name, phone)
 
-    # 2. Buyurtmani API orqali yaratish
-    order_data = {
-        "order_id": order_id,
-        "user_id": user_id,
-        "service_id": service["id"],
-        "service_name": service["name"],
-        "contact_method": contact_method or "Telegram",
-        "contact_time": contact_time or "12:00",
-        "name": name or "Ismsiz",                      # ✅ majburiy
-        "phone": phone or "+998000000000"              # ✅ majburiy
-    }
-
-    print("✅ create_order chaqirildi")
-    print("Yuboriladigan order_data:")
-    print(json.dumps(order_data, indent=2))
-
-    await create_order(order_data)
 
     # 3. Guruhga yuboriladigan xabar
     text = ORDER_MESSAGE_TEMPLATE.format(
