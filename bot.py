@@ -158,236 +158,167 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 import math
 
-def create_invoice_image(order, amount):
-    # Rasm o‘lchamlari
-    width, height = 600, 850  # QR-kod uchun balandlik
-    img = Image.new('RGB', (width, height), color='#FFFFFF')  # Oq fon
+def create_invoice_image(order: dict):
+    # Rasm o‘lchami
+    width, height = 600, 950
+    img = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(img)
 
-    # Shrift sozlamalari (kattaroq matnlar)
+    # Shriftlar
     try:
-        font_title = ImageFont.truetype("cour.ttf", 24)  # Kattaroq sarlavha
-        font_body = ImageFont.truetype("cour.ttf", 20)   # Kattaroq asosiy matn
-        font_small = ImageFont.truetype("cour.ttf", 14)  # Kattaroq pastki yozuv
-    except IOError:
+        font_title = ImageFont.truetype("arialbd.ttf", 36)
+        font = ImageFont.truetype("arial.ttf", 24)
+        font_small = ImageFont.truetype("arial.ttf", 20)
+    except:
         font_title = ImageFont.load_default()
-        font_body = ImageFont.load_default()
+        font = ImageFont.load_default()
         font_small = ImageFont.load_default()
 
-    # Logo qo‘shish (faqat chekda bo‘ladi, bu yerda ishlamaydi)
-    y = 40
+    y = 30
 
-    # Terminal uslubidagi sarlavha
-    header = "TEXNOSET XIZMATLARI"
-    header_bbox = draw.textbbox((0, 0), header, font=font_title)
-    header_width = header_bbox[2] - header_bbox[0]
-    draw.text(((width - header_width) // 2, y), header, font=font_title, fill='#000000')
+    # Sarlavha
+    draw.text((width//2 - 100, y), "TO‘LOV INVOYSI", font=font_title, fill="black")
+    y += 60
+
+    # Buyurtma ma’lumotlari
+    draw.text((40, y), f"Buyurtma raqami: #{order['order_id']}", font=font, fill="black")
     y += 40
-    draw.text((50, y), "-" * 40, font=font_body, fill='#000000')
-    y += 20
+    draw.text((40, y), f"Xizmat: {order['service_name']}", font=font, fill="black")
+    y += 40
 
-    # Invoys sarlavhasi
-    title = "TO‘LOV INVOYSI"
-    title_bbox = draw.textbbox((0, 0), title, font=font_title)
-    title_width = title_bbox[2] - title_bbox[0]
-    draw.text(((width - title_width) // 2, y), title, font=font_title, fill='#000000')
+    # Narxlar
+    draw.text((40, y), f"Asl narxi: {order['original_price']} so‘m", font=font_small, fill="gray")
+    draw.line([(180, y+20), (360, y+20)], fill="gray", width=2)
+    y += 40
+    draw.text((40, y), f"Aksiya narxi: {order['price']} so‘m", font=font, fill="black")
+    y += 40
+
+    # Foyda va cashback
+    draw.text((40, y), f"Foyda: +{order['profit']} so‘m", font=font_small, fill="green")
+    y += 30
+    draw.text((40, y), f"Beriladigan cashback: {order['cashback']} so‘m", font=font_small, fill="blue")
     y += 50
 
-    # Buyurtma ma‘lumotlari
-    details = [
-        f"Buyurtma: #{order['order_id']}",
-        f"Xizmat: {order['service_name']}",
-        f"Narxi: {amount} so‘m",
-        f"Vaqt: {order['timestamp']}"
-    ]
-    for line in details:
-        draw.text((50, y), line, font=font_body, fill='#000000')
-        y += 30
+    # Mijoz
+    draw.text((40, y), f"📞 Mijoz raqami: {order['phone']}", font=font, fill="black")
+    y += 40
+    draw.text((40, y), f"🕒 Aloqa vaqti: {order['contact_time']}", font=font, fill="black")
+    y += 50
 
-    # Ajratgich
-    y += 10
-    draw.text((50, y), "=" * 40, font=font_body, fill='#000000')
-    y += 20
-
-    # To‘lov ma‘lumotlari
-    draw.text((50, y), "To‘lov Ma‘lumotlari:", font=font_body, fill='#000000')
+    # Manzil va aloqa
+    draw.text((40, y), "📍 Manzil: Qarshi tumani, Qovchin MFY", font=font_small, fill="black")
     y += 30
-    draw.text((50, y), "Karta: 8600 3104 7319 9081", font=font_body, fill='#000000')
+    draw.text((40, y), "Yangihayot ko‘chasi, 44-uy", font=font_small, fill="black")
     y += 30
-    draw.text((50, y), f"Summa: {amount} so‘m", font=font_body, fill='#000000')
+    draw.text((40, y), "☎️ +998 77 009 71 71", font=font_small, fill="black")
+    y += 30
+    draw.text((40, y), "Telegram: @texnoset", font=font_small, fill="black")
     y += 40
 
-    # Ajratgich
-    draw.text((50, y), "-" * 40, font=font_body, fill='#000000')
-    y += 20
+    # Holat: TO‘LANMAGAN
+    draw.text((40, y), "💳 Holat: TO‘LANMAGAN", font=font, fill="red")
+    y += 40
 
-    # Pastki yozuv
-    footer = "Texnoset – Ishonchli Xizmat!"
-    footer_bbox = draw.textbbox((0, 0), footer, font=font_small)
-    footer_width = footer_bbox[2] - footer_bbox[0]
-    draw.text(((width - footer_width) // 2, y), footer, font=font_small, fill='#000000')
-    y += 20
-    contact = "Aloqa: +998 77 009 71 71"
-    contact_bbox = draw.textbbox((0, 0), contact, font=font_small)
-    contact_width = contact_bbox[2] - contact_bbox[0]
-    draw.text(((width - contact_width) // 2, y), contact, font=font_small, fill='#000000')
-    y += 30
+    # Sana
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    draw.text((40, y), f"Sana: {now}", font=font_small, fill="gray")
+    y += 60
 
-    # QR-kod qo‘shish
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=4,
-        border=2,
-    )
-    qr.add_data("https://t.me/texnosetUZ")
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-    qr_img = qr_img.resize((100, 100), Image.Resampling.LANCZOS)
-    qr_x = (width - 100) // 2
-    img.paste(qr_img, (qr_x, y))
+    # QR kod
+    qr = qrcode.make("https://t.me/texnosetUZ")
+    qr = qr.resize((100, 100))
+    img.paste(qr, ((width - 100)//2, y))
     y += 110
-    qr_label = "Kanalimizga obuna bo‘ling!"
-    qr_label_bbox = draw.textbbox((0, 0), qr_label, font=font_small)
-    qr_label_width = qr_label_bbox[2] - qr_label_bbox[0]
-    draw.text(((width - qr_label_width) // 2, y), qr_label, font=font_small, fill='#000000')
+    draw.text(((width - 280)//2, y), "Kanalimizga obuna bo‘ling!", font=font_small, fill="black")
 
-    # Rasmni saqlash
+    # Rasmni yuborish uchun tayyorlash
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
     return buffer
 
-def create_receipt_image(order, amount, confirmation_time):
-    # Rasm o‘lchamlari
-    width, height = 600, 900
-    img = Image.new('RGB', (width, height), color='#FFFFFF')  # Oq fon
+def create_receipt_image(order: dict):
+    # Asosiy o‘lchamlar
+    width, height = 600, 950
+    img = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(img)
 
-    # Shrift sozlamalari
+    # Shriftlar
     try:
-        font_title = ImageFont.truetype("cour.ttf", 24)
-        font_body = ImageFont.truetype("cour.ttf", 20)
-        font_small = ImageFont.truetype("cour.ttf", 14)
-        font_stamp = ImageFont.truetype("cour.ttf", 18)  # Kichikroq muhr shrifti
-    except IOError:
+        font_title = ImageFont.truetype("arialbd.ttf", 36)
+        font = ImageFont.truetype("arial.ttf", 24)
+        font_small = ImageFont.truetype("arial.ttf", 20)
+    except:
         font_title = ImageFont.load_default()
-        font_body = ImageFont.load_default()
+        font = ImageFont.load_default()
         font_small = ImageFont.load_default()
-        font_stamp = ImageFont.load_default()
 
-    # Logo qo‘shish (yuqorida, markazda)
-    try:
-        logo = Image.open("logo.png")
-        logo_width, logo_height = logo.size
-        scale = min(200 / logo_width, 200 / logo_height)
-        new_size = (int(logo_width * scale), int(logo_height * scale))
-        logo = logo.resize(new_size, Image.Resampling.LANCZOS)
-        logo_x = (width - new_size[0]) // 2
-        img.paste(logo, (logo_x, 20), logo if logo.mode == 'RGBA' else None)
-        y = 20 + new_size[1] + 20
-    except FileNotFoundError:
-        y = 40
+    y = 30
 
-    # Terminal uslubidagi sarlavha
-    header = "TEXNOSET XIZMATLARI"
-    header_bbox = draw.textbbox((0, 0), header, font=font_title)
-    header_width = header_bbox[2] - header_bbox[0]
-    draw.text(((width - header_width) // 2, y), header, font=font_title, fill='#000000')
+    # Sarlavha
+    draw.text((width//2 - 100, y), "TO‘LOV CHEKI", font=font_title, fill="black")
+    y += 60
+
+    # Buyurtma ma’lumotlari
+    draw.text((40, y), f"Buyurtma raqami: #{order['order_id']}", font=font, fill="black")
     y += 40
-    draw.text((50, y), "-" * 40, font=font_body, fill='#000000')
-    y += 20
+    draw.text((40, y), f"Xizmat: {order['service_name']}", font=font, fill="black")
+    y += 40
 
-    # Chek sarlavhasi
-    title = "TO‘LOV CHEKI"
-    title_bbox = draw.textbbox((0, 0), title, font=font_title)
-    title_width = title_bbox[2] - title_bbox[0]
-    draw.text(((width - title_width) // 2, y), title, font=font_title, fill='#000000')
+    # Narxlar
+    draw.text((40, y), f"Asl narxi: {order['original_price']} so‘m", font=font_small, fill="gray")
+    draw.line([(180, y+20), (360, y+20)], fill="gray", width=2)
+    y += 40
+    draw.text((40, y), f"Siz to‘lagan narx: {order['price']} so‘m", font=font, fill="black")
+    y += 40
+
+    # Foyda va cashback
+    draw.text((40, y), f"Foyda: +{order['profit']} so‘m", font=font_small, fill="green")
+    y += 30
+    draw.text((40, y), f"Berilgan cashback: {order['cashback']} so‘m", font=font_small, fill="blue")
     y += 50
 
-    # Buyurtma ma‘lumotlari
-    details = [
-        f"Buyurtma: #{order['order_id']}",
-        f"Xizmat: {order['service_name']}",
-        f"Summa: {amount} so‘m",
-        f"Vaqt: {order['timestamp']}",
-        f"Tasdiq: {confirmation_time}"
-    ]
-    for line in details:
-        draw.text((50, y), line, font=font_body, fill='#000000')
-        y += 30
+    # Mijoz
+    draw.text((40, y), f"📞 Mijoz raqami: {order['phone']}", font=font, fill="black")
+    y += 40
+    draw.text((40, y), f"🕒 Aloqa vaqti: {order['contact_time']}", font=font, fill="black")
+    y += 50
 
-    # Ajratgich
-    y += 10
-    draw.text((50, y), "=" * 40, font=font_body, fill='#000000')
-    y += 20
-
-    # To‘lov ma‘lumotlari
-    draw.text((50, y), "To‘lov Ma‘lumotlari:", font=font_body, fill='#000000')
+    # Manzil
+    draw.text((40, y), "📍 Manzil: Qashqadaryo, Qarshi tumani", font=font_small, fill="black")
     y += 30
-    draw.text((50, y), "Karta: 8600 3104 7319 9081", font=font_body, fill='#000000')
+    draw.text((40, y), "Qovchin MFY, Yangihayot ko‘chasi 44-uy", font=font_small, fill="black")
     y += 30
-    draw.text((50, y), "Holati: To‘landi", font=font_body, fill='#000000')
+    draw.text((40, y), "☎️ +998 77 009 71 71", font=font_small, fill="black")
+    y += 30
+    draw.text((40, y), "Telegram: @texnoset", font=font_small, fill="black")
     y += 40
 
-    # Realistik to‘rtburchak muhr (kichikroq)
-    stamp_x, stamp_y = 350, y
-    stamp_text = "TO‘LANDI"
-    stamp_img = Image.new('RGBA', (150, 100), (0, 0, 0, 0))  # Kichikroq hajm
-    stamp_draw = ImageDraw.Draw(stamp_img)
-    stamp_draw.rectangle((10, 10, 140, 90), outline='#000080', width=2)  # To‘rtburchak, qalin chet
-    stamp_bbox = stamp_draw.textbbox((0, 0), stamp_text, font=font_stamp)
-    stamp_width = stamp_bbox[2] - stamp_bbox[0]
-    stamp_height = stamp_bbox[3] - stamp_bbox[1]
-    # Soya effekti
-    stamp_draw.text((30 + 2, 40 + 2), stamp_text, font=font_stamp, fill=(0, 0, 128, 100))
-    # Asosiy matn
-    stamp_draw.text((30, 40), stamp_text, font=font_stamp, fill='#000080')
-    # Engil burish
-    stamp_img = stamp_img.rotate(5, expand=True, resample=Image.Resampling.BICUBIC)
-    img.paste(stamp_img, (stamp_x - 25, stamp_y - 25), stamp_img)
-    y += 100
+    # Muhr "TO‘LANDI"
+    stamp = Image.new("RGBA", (160, 90), (255, 255, 255, 0))
+    stamp_draw = ImageDraw.Draw(stamp)
+    stamp_draw.rectangle((10, 10, 150, 80), outline="blue", width=3)
+    stamp_draw.text((25, 35), "TO‘LANDI", font=font, fill="blue")
+    stamp = stamp.rotate(10, expand=True)
+    img.paste(stamp, (400, y-60), stamp)
 
-    # Ajratgich
-    draw.text((50, y), "-" * 40, font=font_body, fill='#000000')
-    y += 20
+    # Sana
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    draw.text((40, y), f"Sana: {now}", font=font_small, fill="gray")
+    y += 60
 
-    # Pastki yozuv
-    footer = "Texnoset – Ishonchli Xizmat!"
-    footer_bbox = draw.textbbox((0, 0), footer, font=font_small)
-    footer_width = footer_bbox[2] - footer_bbox[0]
-    draw.text(((width - footer_width) // 2, y), footer, font=font_small, fill='#000000')
-    y += 20
-    contact = "Aloqa: +998 77 009 71 71"
-    contact_bbox = draw.textbbox((0, 0), contact, font=font_small)
-    contact_width = contact_bbox[2] - contact_bbox[0]
-    draw.text(((width - contact_width) // 2, y), contact, font=font_small, fill='#000000')
-    y += 30
-
-    # QR-kod qo‘shish
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=4,
-        border=2,
-    )
-    qr.add_data("https://t.me/texnosetUZ")
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-    qr_img = qr_img.resize((100, 100), Image.Resampling.LANCZOS)
-    qr_x = (width - 100) // 2
-    img.paste(qr_img, (qr_x, y))
+    # QR kod
+    qr = qrcode.make("https://t.me/texnosetUZ")
+    qr = qr.resize((100, 100))
+    img.paste(qr, ((width - 100)//2, y))
     y += 110
-    qr_label = "Kanalimizga obuna bo‘ling!"
-    qr_label_bbox = draw.textbbox((0, 0), qr_label, font=font_small)
-    qr_label_width = qr_label_bbox[2] - qr_label_bbox[0]
-    draw.text(((width - qr_label_width) // 2, y), qr_label, font=font_small, fill='#000000')
+    draw.text(((width - 280)//2, y), "Kanalimizga obuna bo‘ling!", font=font_small, fill="black")
 
-    # Rasmni saqlash
+    # Rasmni yuborish uchun tayyorlash
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
-    return buffer    
+    return buffer
       
 
 
